@@ -1,0 +1,50 @@
+* 7510 syslog configure
+  /etc/rsyslog.conf:
+  # Include all config files in /etc/rsyslog.d/ 
+  $IncludeConfig /etc/rsyslog.d/*.conf
+  
+  /etc/rsyslog.d/20-v7510.conf:
+  redirect logs to /opt/v7510/data/SYSLOG.*
+* logrotate
+  logrotate may be used to split a file automatically for MPU.TRA
+* 7510 gfi_doc
+  gfi doctor, may report CPU overload alarm, refer to:
+  appl/apv/vm-apv-performance-alarm/apv_performance_alarm.c, pvm_tirgger_cpu_alarm()
+* ssh x11 forwarding
+  Enable X11 over IPv4 from another host, configuration in /etc/ssh/sshd_config:
+  X11Forwarding yes
+  X11UseLocalhost no
+  AddressFamily inet
+
+  Because I change my HOME directory, I need to:
+  export XAUTHORITY=/home/xujian/.Xauthority
+
+  https://unix.stackexchange.com/questions/110558/su-with-error-x11-connection-rejected-because-of-wrong-authentication/118295
+  record a way to enable x11 after su to root:
+  To fix things, firstly detect which display number standarduser uses:
+
+  standarduser@localhost:~$ echo $DISPLAY
+  localhost:21.0
+
+  In this case it is 21.0. Secondly, display standarduser's list of cookies:
+  standarduser@localhost:~$ xauth list
+  localhost/unix:1  MIT-MAGIC-COOKIE-1  51a3801fd7776704575752f09015c61d
+  localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104f
+  localhost/unix:22  MIT-MAGIC-COOKIE-1  22ba6595c270f20f6315c53e27958dfe
+  localhost/unix:20  MIT-MAGIC-COOKIE-1  267f68b51726a8a381cfc10c91783a13
+  The cookie for the 21.0 display is the second in the list and ends with 104f.
+  
+  The last thing to do is to add this particular cookie to the root's .Xauthority. Log in as root and do the following:
+  root@localhost:~$ xauth add localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104
+  This is a plain and simple how to deal with the X11 connection rejected because of wrong authentication error while you run su as different users in bash script or screen. And, by the way, thanks to this guy for his brilliant post.
+  
+  And an easier solution:
+  
+  1.- ssh user@host
+  
+  2.- $ sudo su
+  
+  3.- # xauth merge /home/user/.Xauthority
+* ssh debug
+  client: run with -v and -p 12345 option
+  server: configure sshd in debug detail mode, or start another one with "/sbin/sshd -dd -D -p 12345"
