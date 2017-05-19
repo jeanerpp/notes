@@ -48,3 +48,78 @@
 * ssh debug
   client: run with -v and -p 12345 option
   server: configure sshd in debug detail mode, or start another one with "/sbin/sshd -dd -D -p 12345"
+* top
+  In "top" what are us, sy, ni, id, wa, hi, si and st (for CPU usage)?
+  
+  us - user cpu time (or) % CPU time spent in user space
+  sy - system cpu time (or) % CPU time spent in kernel space
+  ni - user nice cpu time (or) % CPU time spent on low priority processes
+  id - idle cpu time (or) % CPU time spent idle
+  wa - io wait cpu time (or) % CPU time spent in wait (on disk)
+  hi - hardware irq (or) % CPU time spent servicing/handling hardware interrupts
+  si - software irq (or) % CPU time spent servicing/handling software interrupts
+  st - steal time % CPU time in involuntary wait by virtual cpu while hypervisor is servicing another processor (or) % CPU time stolen from a virtual machine
+* linux performance monitoring
+  a long list: htop, dstat, collectl, nmon, saidar, sar, glances, atop
+  http://www.binarytides.com/linux-system-monitoring-tools/
+  http://collectl.sourceforge.net/Process.html
+  http://www.brendangregg.com/blog/2015-07-08/choosing-a-linux-tracer.html
+  http://elinux.org/Kernel_Trace_Systems
+** atop
+   atop can see exited process status during two sample period.
+   "atop -s", we are able to see that top run and exit during this peroid
+   PID       TID      ENVID      TRUN      TSLPI     TSLPU      POLI      NICE      PRI      RTPR     CPUNR      ST      EXC      S       CPU     CMD         1/1
+   18120         -          -         0          0         0      -            -        -         -         -      NE        0      E        0%     <top>
+** perf
+   refer to: http://www.brendangregg.com/perf.html
+   record event and analyse detailed sched event:
+   perf sched record -- sleep 10, or specify CPU(s), perf sched record --cpu 1 -- sleep 10
+   perf script --header:
+   swapper     0 [001] 65513.769647:       sched:sched_wakeup: xfsaild/dm-0:407 [120] success=1 CPU:001
+   swapper     0 [001] 65513.769678:       sched:sched_switch: swapper/1:0 [120] R ==> xfsaild/dm-0:407 [120]
+
+   this format is also find: perf record -e sched:sched_process_fork record bash
+** trace-cmd
+   trace-cmd record -e sched
+   trace-cmd report:
+   tuned-1609  [000] 65680.593381: sched_stat_runtime:   comm=tuned pid=1609 runtime=182320 [ns] vruntime=392716070185 [ns]
+   tuned-1609  [000] 65680.593385: sched_switch:         tuned:1609 [120] S ==> swapper/0:0 [120]
+* auditd and trace signal
+** watch file actions
+   command setup: auditctl -w /home -p w
+   configure setup: -w /home -p w
+   check actions related to "/home/*", for example, /home/diag is deleted/created: ausearch -f /home -i
+   ----
+   type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,700 ouid=diag ogid=diag rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=DELETE
+   type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
+   type=CWD msg=audit(12/29/2016 13:01:38.854:187) :  cwd=/
+   type=SYSCALL msg=audit(12/29/2016 13:01:38.854:187) : arch=x86_64 syscall=rmdir success=yes exit=0 a0=0x7f25702985e0 a1=0x0 a2=0xd1 a3=0x7f256e73a7b8 items=2 ppid=2491 pid=2695 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=userdel exe=/usr/sbin/userdel subj=system_u:system_r:unconfined_service_t:s0 key=(null)
+   ----
+   type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,000 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=CREATE
+   type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
+   type=CWD msg=audit(12/29/2016 13:01:39.005:213) :  cwd=/
+   type=SYSCALL msg=audit(12/29/2016 13:01:39.005:213) : arch=x86_64 syscall=mkdir success=yes exit=0 a0=0x7fff66f34f8d a1=0000 a2=0x7f19c907a778 a3=0x5f656d6f685f7265 items=2 ppid=2491 pid=2705 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=useradd exe=/usr/sbin/useradd subj=system_u:system_r:unconfined_service_t:s0 key=(null)
+   ----
+** watch new process
+   command setup: auditctl -a task,always
+   check records: ausearch -i -sc execve
+   ----
+   type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=1 name=/lib64/ld-linux-x86-64.so.2 inode=34343705 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:ld_so_t:s0 objtype=NORMAL
+   type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=0 name=/usr/bin/awk inode=16912380 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:bin_t:s0 objtype=NORMAL
+   type=CWD msg=audit(05/18/2017 20:45:27.125:2637) :  cwd=/
+   type=EXECVE msg=audit(05/18/2017 20:45:27.125:2637) : argc=3 a0=awk a1=/^(MemFree|Buffers|Cached):/ {free += $2}; END {print free} a2=/proc/meminfo
+   type=SYSCALL msg=audit(05/18/2017 20:45:27.125:2637) : arch=x86_64 syscall=execve success=yes exit=0 a0=0x1556bf0 a1=0x15512b0 a2=0x1544ae0 a3=0x7ffea5b28430 items=2 ppid=12803 pid=12804 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=awk exe=/usr/bin/gawk subj=system_u:system_r:ksmtuned_t:s0 key=(null)
+   ----
+** watch signals
+   however it not works via following step according to https://www.ibm.com/developerworks/community/blogs/aimsupport/entry/Finding_the_source_of_signals_on_Linux_with_strace_auditd_or_Systemtap?lang=en
+   auditctl -a exit,always -F arch=b64 -S kill -k kill_signals
+   <--- do some kill action: start top and then kill it --->
+   ausearch -i -k kill_signals, but find nothing. However detail things can be found in /var/log/audit/audit.log:
+   type=OBJ_PID msg=audit(05/19/2017 00:54:31.993:1328072) : opid=18064 oauid=root ouid=root oses=26 obj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 ocomm=top
+   type=SYSCALL msg=audit(05/19/2017 00:54:31.993:1328072) : arch=x86_64 syscall=kill success=yes exit=0 a0=0x4690 a1=SIGKILL a2=0x0 a3=0x4690 items=0 ppid=12284 pid=12295 auid=root uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=pts0 ses=19 comm=bash exe=/usr/bin/bash subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key=kill_signals
+** perf signal
+   perf record -a -e syscalls:sys_enter_kill sleep 60
+   perf script:
+               bash 17950 [001] 63637.957597: syscalls:sys_enter_kill: pid: 0x0000461e, sig: 0x00000009
+** systemtap
+   seems to be find, but little bit complicated since kernel debug symbol needed.
