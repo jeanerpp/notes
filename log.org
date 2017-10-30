@@ -1,125 +1,588 @@
-* 7510 syslog configure
-  /etc/rsyslog.conf:
-  # Include all config files in /etc/rsyslog.d/ 
-  $IncludeConfig /etc/rsyslog.d/*.conf
-  
-  /etc/rsyslog.d/20-v7510.conf:
-  redirect logs to /opt/v7510/data/SYSLOG.*
-* logrotate
-  logrotate may be used to split a file automatically for MPU.TRA
-* 7510 gfi_doc
-  gfi doctor, may report CPU overload alarm, refer to:
-  appl/apv/vm-apv-performance-alarm/apv_performance_alarm.c, pvm_tirgger_cpu_alarm()
-* ssh x11 forwarding
-  Enable X11 over IPv4 from another host, configuration in /etc/ssh/sshd_config:
-  X11Forwarding yes
-  X11UseLocalhost no
-  AddressFamily inet
+* root
+** 7510 syslog configure
+   /etc/rsyslog.conf:
+   # Include all config files in /etc/rsyslog.d/ 
+   $IncludeConfig /etc/rsyslog.d/*.conf
+   
+   /etc/rsyslog.d/20-v7510.conf:
+   redirect logs to /opt/v7510/data/SYSLOG.*
+** NPU
+*** 7510 NPU FIFO status
+    def ui sys ena
+    d test trace hds debug nfifd
+*** HE NPU crash
+    cased by integer printed as string: printf("%s",i)
+    0x833f9a24 is at new_allocator.h:69.
+    64      new_allocator.h: No such file or directory.
+    in new_allocator.h
+** logrotate
+   logrotate may be used to split a file automatically for MPU.TRA
+   it is defined in cron: /etc/cron.d/...
+** 7510
+*** gfi dockor
+    gfi doctor, may report CPU overload alarm, refer to:
+    appl/apv/vm-apv-performance-alarm/apv_performance_alarm.c, pvm_tirgger_cpu_alarm()
+*** iOAM login SCM
+    ssh -o StrictHostKeyChecking=no diag@169.254.195.255
+** ssh x11 forwarding
+   Enable X11 over IPv4 from another host, configuration in /etc/ssh/sshd_config:
+   X11Forwarding yes
+   X11UseLocalhost no
+   AddressFamily inet
 
-  Because I change my HOME directory, I need to:
-  export XAUTHORITY=/home/xujian/.Xauthority
+   Because I change my HOME directory, I need to:
+   export XAUTHORITY=/home/xujian/.Xauthority
 
-  https://unix.stackexchange.com/questions/110558/su-with-error-x11-connection-rejected-because-of-wrong-authentication/118295
-  record a way to enable x11 after su to root:
-  To fix things, firstly detect which display number standarduser uses:
+   https://unix.stackexchange.com/questions/110558/su-with-error-x11-connection-rejected-because-of-wrong-authentication/118295
+   record a way to enable x11 after su to root:
+   To fix things, firstly detect which display number standarduser uses:
 
-  standarduser@localhost:~$ echo $DISPLAY
-  localhost:21.0
+   standarduser@localhost:~$ echo $DISPLAY
+   localhost:21.0
 
-  In this case it is 21.0. Secondly, display standarduser's list of cookies:
-  standarduser@localhost:~$ xauth list
-  localhost/unix:1  MIT-MAGIC-COOKIE-1  51a3801fd7776704575752f09015c61d
-  localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104f
-  localhost/unix:22  MIT-MAGIC-COOKIE-1  22ba6595c270f20f6315c53e27958dfe
-  localhost/unix:20  MIT-MAGIC-COOKIE-1  267f68b51726a8a381cfc10c91783a13
-  The cookie for the 21.0 display is the second in the list and ends with 104f.
-  
-  The last thing to do is to add this particular cookie to the root's .Xauthority. Log in as root and do the following:
-  root@localhost:~$ xauth add localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104
-  This is a plain and simple how to deal with the X11 connection rejected because of wrong authentication error while you run su as different users in bash script or screen. And, by the way, thanks to this guy for his brilliant post.
-  
-  And an easier solution:
-  
-  1.- ssh user@host
-  
-  2.- $ sudo su
-  
-  3.- # xauth merge /home/user/.Xauthority
-* ssh debug
-  client: run with -v and -p 12345 option
-  server: configure sshd in debug detail mode, or start another one with "/sbin/sshd -dd -D -p 12345"
-* top
-  In "top" what are us, sy, ni, id, wa, hi, si and st (for CPU usage)?
-  
-  us - user cpu time (or) % CPU time spent in user space
-  sy - system cpu time (or) % CPU time spent in kernel space
-  ni - user nice cpu time (or) % CPU time spent on low priority processes
-  id - idle cpu time (or) % CPU time spent idle
-  wa - io wait cpu time (or) % CPU time spent in wait (on disk)
-  hi - hardware irq (or) % CPU time spent servicing/handling hardware interrupts
-  si - software irq (or) % CPU time spent servicing/handling software interrupts
-  st - steal time % CPU time in involuntary wait by virtual cpu while hypervisor is servicing another processor (or) % CPU time stolen from a virtual machine
-* linux performance monitoring
-  a long list: htop, dstat, collectl, nmon, saidar, sar, glances, atop
-  http://www.binarytides.com/linux-system-monitoring-tools/
-  http://collectl.sourceforge.net/Process.html
-  http://www.brendangregg.com/blog/2015-07-08/choosing-a-linux-tracer.html
-  http://elinux.org/Kernel_Trace_Systems
-** atop
-   atop can see exited process status during two sample period.
-   "atop -s", we are able to see that top run and exit during this peroid
-   PID       TID      ENVID      TRUN      TSLPI     TSLPU      POLI      NICE      PRI      RTPR     CPUNR      ST      EXC      S       CPU     CMD         1/1
-   18120         -          -         0          0         0      -            -        -         -         -      NE        0      E        0%     <top>
-** perf
-   refer to: http://www.brendangregg.com/perf.html
-   record event and analyse detailed sched event:
-   perf sched record -- sleep 10, or specify CPU(s), perf sched record --cpu 1 -- sleep 10
-   perf script --header:
-   swapper     0 [001] 65513.769647:       sched:sched_wakeup: xfsaild/dm-0:407 [120] success=1 CPU:001
-   swapper     0 [001] 65513.769678:       sched:sched_switch: swapper/1:0 [120] R ==> xfsaild/dm-0:407 [120]
+   In this case it is 21.0. Secondly, display standarduser's list of cookies:
+   standarduser@localhost:~$ xauth list
+   localhost/unix:1  MIT-MAGIC-COOKIE-1  51a3801fd7776704575752f09015c61d
+   localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104f
+   localhost/unix:22  MIT-MAGIC-COOKIE-1  22ba6595c270f20f6315c53e27958dfe
+   localhost/unix:20  MIT-MAGIC-COOKIE-1  267f68b51726a8a381cfc10c91783a13
+   The cookie for the 21.0 display is the second in the list and ends with 104f.
+   
+   The last thing to do is to add this particular cookie to the root's .Xauthority. Log in as root and do the following:
+   root@localhost:~$ xauth add localhost/unix:21  MIT-MAGIC-COOKIE-1  0ba2913f8d9df0ee9eda295cad7b104
+   This is a plain and simple how to deal with the X11 connection rejected because of wrong authentication error while you run su as different users in bash script or screen. And, by the way, thanks to this guy for his brilliant post.
+   
+   And an easier solution:
+   
+   1.- ssh user@host
+   
+   2.- $ sudo su
+   
+   3.- # xauth merge /home/user/.Xauthority
+** ssh debug
+   client: run with -v and -p 12345 option
+   server: configure sshd in debug detail mode, or start another one with "/sbin/sshd -dd -D -p 12345"
+** linux performance monitoring
+   a long list: htop, dstat, collectl, nmon, saidar, sar, glances, atop
+   http://www.binarytides.com/linux-system-monitoring-tools/
+   http://collectl.sourceforge.net/Process.html
+   http://www.brendangregg.com/blog/2015-07-08/choosing-a-linux-tracer.html
+   http://elinux.org/Kernel_Trace_Systems
+*** atop
+    atop can see exited process status during two sample period. To show cpu running on: "s    Show scheduling characteristics"
+    "atop -s", we are able to see that top run and exit during this peroid
+    PID       TID      ENVID      TRUN      TSLPI     TSLPU      POLI      NICE      PRI      RTPR     CPUNR      ST      EXC      S       CPU     CMD         1/1
+    18120         -          -         0          0         0      -            -        -         -         -      NE        0      E        0%     <top>
+*** perf
+    howto make perf from new source:
+    1 download from https://github.com/torvalds/linux
+    2 in linux-master/tools/perf, run make
+    
+    refer to: http://www.brendangregg.com/perf.html
+    record event and analyse detailed sched event:
+    perf sched record -- sleep 10, or specify CPU(s), perf sched record --cpu 1 -- sleep 10
+    perf script --header:
+    swapper     0 [001] 65513.769647:       sched:sched_wakeup: xfsaild/dm-0:407 [120] success=1 CPU:001
+    swapper     0 [001] 65513.769678:       sched:sched_switch: swapper/1:0 [120] R ==> xfsaild/dm-0:407 [120]
 
-   this format is also find: perf record -e sched:sched_process_fork record bash
-** trace-cmd
-   trace-cmd record -e sched
-   trace-cmd report:
-   tuned-1609  [000] 65680.593381: sched_stat_runtime:   comm=tuned pid=1609 runtime=182320 [ns] vruntime=392716070185 [ns]
-   tuned-1609  [000] 65680.593385: sched_switch:         tuned:1609 [120] S ==> swapper/0:0 [120]
-* auditd and trace signal
-** watch file actions
-   command setup: auditctl -w /home -p w
-   configure setup: -w /home -p w
-   check actions related to "/home/*", for example, /home/diag is deleted/created: ausearch -f /home -i
-   ----
-   type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,700 ouid=diag ogid=diag rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=DELETE
-   type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
-   type=CWD msg=audit(12/29/2016 13:01:38.854:187) :  cwd=/
-   type=SYSCALL msg=audit(12/29/2016 13:01:38.854:187) : arch=x86_64 syscall=rmdir success=yes exit=0 a0=0x7f25702985e0 a1=0x0 a2=0xd1 a3=0x7f256e73a7b8 items=2 ppid=2491 pid=2695 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=userdel exe=/usr/sbin/userdel subj=system_u:system_r:unconfined_service_t:s0 key=(null)
-   ----
-   type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,000 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=CREATE
-   type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
-   type=CWD msg=audit(12/29/2016 13:01:39.005:213) :  cwd=/
-   type=SYSCALL msg=audit(12/29/2016 13:01:39.005:213) : arch=x86_64 syscall=mkdir success=yes exit=0 a0=0x7fff66f34f8d a1=0000 a2=0x7f19c907a778 a3=0x5f656d6f685f7265 items=2 ppid=2491 pid=2705 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=useradd exe=/usr/sbin/useradd subj=system_u:system_r:unconfined_service_t:s0 key=(null)
-   ----
-** watch new process
-   command setup: auditctl -a task,always
-   check records: ausearch -i -sc execve
-   ----
-   type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=1 name=/lib64/ld-linux-x86-64.so.2 inode=34343705 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:ld_so_t:s0 objtype=NORMAL
-   type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=0 name=/usr/bin/awk inode=16912380 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:bin_t:s0 objtype=NORMAL
-   type=CWD msg=audit(05/18/2017 20:45:27.125:2637) :  cwd=/
-   type=EXECVE msg=audit(05/18/2017 20:45:27.125:2637) : argc=3 a0=awk a1=/^(MemFree|Buffers|Cached):/ {free += $2}; END {print free} a2=/proc/meminfo
-   type=SYSCALL msg=audit(05/18/2017 20:45:27.125:2637) : arch=x86_64 syscall=execve success=yes exit=0 a0=0x1556bf0 a1=0x15512b0 a2=0x1544ae0 a3=0x7ffea5b28430 items=2 ppid=12803 pid=12804 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=awk exe=/usr/bin/gawk subj=system_u:system_r:ksmtuned_t:s0 key=(null)
-   ----
-** watch signals
-   however it not works via following step according to https://www.ibm.com/developerworks/community/blogs/aimsupport/entry/Finding_the_source_of_signals_on_Linux_with_strace_auditd_or_Systemtap?lang=en
-   auditctl -a exit,always -F arch=b64 -S kill -k kill_signals
-   <--- do some kill action: start top and then kill it --->
-   ausearch -i -k kill_signals, but find nothing. However detail things can be found in /var/log/audit/audit.log:
-   type=OBJ_PID msg=audit(05/19/2017 00:54:31.993:1328072) : opid=18064 oauid=root ouid=root oses=26 obj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 ocomm=top
-   type=SYSCALL msg=audit(05/19/2017 00:54:31.993:1328072) : arch=x86_64 syscall=kill success=yes exit=0 a0=0x4690 a1=SIGKILL a2=0x0 a3=0x4690 items=0 ppid=12284 pid=12295 auid=root uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=pts0 ses=19 comm=bash exe=/usr/bin/bash subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key=kill_signals
-** perf signal
-   perf record -a -e syscalls:sys_enter_kill sleep 60
-   perf script:
-               bash 17950 [001] 63637.957597: syscalls:sys_enter_kill: pid: 0x0000461e, sig: 0x00000009
-** systemtap
-   seems to be find, but little bit complicated since kernel debug symbol needed.
+    this format is also find: perf record -e sched:sched_process_fork record bash
+
+    record with call graph then display with "good" output:
+    perf record -g -t 8046
+    perf report --call-graph --stdio -G
+*** trace-cmd
+    trace-cmd record -e sched
+    trace-cmd report:
+    tuned-1609  [000] 65680.593381: sched_stat_runtime:   comm=tuned pid=1609 runtime=182320 [ns] vruntime=392716070185 [ns]
+    tuned-1609  [000] 65680.593385: sched_switch:         tuned:1609 [120] S ==> swapper/0:0 [120]
+*** top
+    In "top" what are us, sy, ni, id, wa, hi, si and st (for CPU usage)?
+    
+    us - user cpu time (or) % CPU time spent in user space
+    sy - system cpu time (or) % CPU time spent in kernel space
+    ni - user nice cpu time (or) % CPU time spent on low priority processes
+    id - idle cpu time (or) % CPU time spent idle
+    wa - io wait cpu time (or) % CPU time spent in wait (on disk)
+    hi - hardware irq (or) % CPU time spent servicing/handling hardware interrupts
+    si - software irq (or) % CPU time spent servicing/handling software interrupts
+    st - steal time % CPU time in involuntary wait by virtual cpu while hypervisor is servicing another processor (or) % CPU time stolen from a virtual machine
+
+    if "wa" too high, process with state "D" should be checked:
+    top - 20:07:11 up 36 min,  0 users,  load average: 7.32, 7.12, 6.39
+    Tasks: 132 total,   2 running, 130 sleeping,   0 stopped,   0 zombie
+    %Cpu0  :  1.5 us, 23.5 sy, 13.2 ni,  0.0 id, 51.5 wa,  0.0 hi,  0.0 si, 10.3 st
+    4365 root      39  19  121336   4004   1068 D  15.0  0.0   0:01.68 mandb  0
+*** memory usage in buffers/cache
+    Meaning of the buffers/cache line in the output of top
+    https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Tuning_and_Optimizing_Red_Hat_Enterprise_Linux_for_Oracle_9i_and_10g_Databases/chap-Oracle_9i_and_10g_Tuning_Guide-Memory_Usage_and_Page_Cache.html
+    Linux always tries to use RAM to speed up disk operations by using available memory for buffers (file system metadata) and cache (pages with actual contents of files or block devices)
+
+    Meaning of the buffers/cache line in the output of free
+    https://serverfault.com/questions/85470/meaning-of-the-buffers-cache-line-in-the-output-of-free
+    A Linux system is really low on memory if the free value in -/+ buffers/cache: line gets low.
+
+    Use lsof to check all open files; use netstat to check pending bytes in socket. They will also consume buffers/cache.
+
+    check memory used by kernel:
+    https://unix.stackexchange.com/questions/97261/how-much-ram-does-the-kernel-use
+    slabtop, grep Slab /proc/meminfo, /proc/slabinfo, /proc/modules, dmesg
+** auditd and trace signal
+*** watch file actions
+    command setup: auditctl -w /home -p w
+    configure setup in /etc/audit/auditd.conf: -w /home -p w
+    check actions related to "/home/*", for example, /home/diag is deleted/created: ausearch -f /home -i
+    ----
+    type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,700 ouid=diag ogid=diag rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=DELETE
+    type=PATH msg=audit(12/29/2016 13:01:38.854:187) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
+    type=CWD msg=audit(12/29/2016 13:01:38.854:187) :  cwd=/
+    type=SYSCALL msg=audit(12/29/2016 13:01:38.854:187) : arch=x86_64 syscall=rmdir success=yes exit=0 a0=0x7f25702985e0 a1=0x0 a2=0xd1 a3=0x7f256e73a7b8 items=2 ppid=2491 pid=2695 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=userdel exe=/usr/sbin/userdel subj=system_u:system_r:unconfined_service_t:s0 key=(null)
+    ----
+    type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=1 name=/home/diag inode=1310726 dev=fd:01 mode=dir,000 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:user_home_dir_t:s0 objtype=CREATE
+    type=PATH msg=audit(12/29/2016 13:01:39.005:213) : item=0 name=/home/ inode=1179649 dev=fd:01 mode=dir,755 ouid=root ogid=root rdev=00:00 obj=unconfined_u:object_r:home_root_t:s0 objtype=PARENT
+    type=CWD msg=audit(12/29/2016 13:01:39.005:213) :  cwd=/
+    type=SYSCALL msg=audit(12/29/2016 13:01:39.005:213) : arch=x86_64 syscall=mkdir success=yes exit=0 a0=0x7fff66f34f8d a1=0000 a2=0x7f19c907a778 a3=0x5f656d6f685f7265 items=2 ppid=2491 pid=2705 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=useradd exe=/usr/sbin/useradd subj=system_u:system_r:unconfined_service_t:s0 key=(null)
+    ----
+*** watch new process
+    command setup: auditctl -a task,always
+    check records: ausearch -i -sc execve
+    ----
+    type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=1 name=/lib64/ld-linux-x86-64.so.2 inode=34343705 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:ld_so_t:s0 objtype=NORMAL
+    type=PATH msg=audit(05/18/2017 20:45:27.125:2637) : item=0 name=/usr/bin/awk inode=16912380 dev=fd:00 mode=file,755 ouid=root ogid=root rdev=00:00 obj=system_u:object_r:bin_t:s0 objtype=NORMAL
+    type=CWD msg=audit(05/18/2017 20:45:27.125:2637) :  cwd=/
+    type=EXECVE msg=audit(05/18/2017 20:45:27.125:2637) : argc=3 a0=awk a1=/^(MemFree|Buffers|Cached):/ {free += $2}; END {print free} a2=/proc/meminfo
+    type=SYSCALL msg=audit(05/18/2017 20:45:27.125:2637) : arch=x86_64 syscall=execve success=yes exit=0 a0=0x1556bf0 a1=0x15512b0 a2=0x1544ae0 a3=0x7ffea5b28430 items=2 ppid=12803 pid=12804 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=awk exe=/usr/bin/gawk subj=system_u:system_r:ksmtuned_t:s0 key=(null)
+    ----
+*** watch signals
+    however it not works via following step according to https://www.ibm.com/developerworks/community/blogs/aimsupport/entry/Finding_the_source_of_signals_on_Linux_with_strace_auditd_or_Systemtap?lang=en
+    auditctl -a exit,always -F arch=b64 -S kill -k kill_signals
+    <--- do some kill action: start top and then kill it --->
+    ausearch -i -k kill_signals, but find nothing. However detail things can be found in /var/log/audit/audit.log:
+    type=OBJ_PID msg=audit(05/19/2017 00:54:31.993:1328072) : opid=18064 oauid=root ouid=root oses=26 obj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 ocomm=top
+    type=SYSCALL msg=audit(05/19/2017 00:54:31.993:1328072) : arch=x86_64 syscall=kill success=yes exit=0 a0=0x4690 a1=SIGKILL a2=0x0 a3=0x4690 items=0 ppid=12284 pid=12295 auid=root uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=pts0 ses=19 comm=bash exe=/usr/bin/bash subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key=kill_signals
+*** perf signal
+    perf record -a -e syscalls:sys_enter_kill sleep 60
+    perf script:
+                bash 17950 [001] 63637.957597: syscalls:sys_enter_kill: pid: 0x0000461e, sig: 0x00000009
+*** systemtap
+    seems to be fine, but little bit complicated since kernel debug symbol needed.
+** RMS packet delay debug
+*** perf command used
+    in host: perf record sched --cpu "2-9,12-23,26-33,36-47"
+    in vm: perf record sched --cpu "2-41"
+    watch log: perf script --header
+    perf record -e 'sched:sched_*' --cpu 40-41
+    perf stat -e 'syscalls:sys_enter_*' -t 4424
+    perf record -e sched:sched_switch --cpu 2-41
+    perf record --event=sched:sched_switch --cpu "2-9,12-23,26-33,36-47"
+*** bind host rcu_* kernel tasks to cpu 10
+    from perf log, it is found that task switch between qemu-kvm and rcu_sched/rcu_bh:
+    rcu_sched    10 [018] 511542.638867:       sched:sched_switch: rcu_sched:10 [120] S ==> qemu-kvm:14416 [120]
+    qemu-kvm 14416 [018] 511542.641862:       sched:sched_wakeup: rcu_sched:10 [120] success=1 CPU:018
+    qemu-kvm 14416 [018] 511542.642857:       sched:sched_switch: qemu-kvm:14416 [120] R ==> rcu_sched:10 [120]
+    rcu_sched    10 [018] 511542.642866:       sched:sched_switch: rcu_sched:10 [120] S ==> qemu-kvm:14416 [120]
+    qemu-kvm 14419 [043] 511542.644863:       sched:sched_wakeup: rcu_sched:10 [120] success=1 CPU:018
+    qemu-kvm 14416 [018] 511542.645856:       sched:sched_switch: qemu-kvm:14416 [120] R ==> rcu_sched:10 [120]
+    
+    according to https://access.redhat.com/documentation/zh-CN/Red_Hat_Enterprise_Linux/7/html/Performance_Tuning_Guide/sect-Red_Hat_Enterprise_Linux-Performance_Tuning_Guide-CPU-Configuration_suggestions.html,
+    it is suggested to bind rcu_* task to "slow speed" CPU, so it is done via command:
+    $ for i in `pgrep rcu` ; do taskset -pc 10 $i ; done
+*** bind vm rcu_* kernel tasks to cpu 0
+    similar as host, done for vm:
+    $ for i in `pgrep rcu` ; do taskset -pc 0 $i ; done
+*** disable watchdog timer in vm
+    from perf log, it is found that switch between npu dp task and watchdog:
+    Ingress-14  4331 [020]  7320.190608:       sched:sched_wakeup: watchdog/20:106 [0] success=1 CPU:020
+    Ingress-14  4331 [020]  7320.190615:       sched:sched_switch: Ingress-14:4331 [120] R ==> watchdog/20:106 [0]
+    watchdog/20   106 [020]  7320.190620:       sched:sched_switch: watchdog/20:106 [0] S ==> Ingress-14:4331 [120]
+    Ingress-14  4331 [020]  7320.911614: sched:sched_stat_runtime: comm=GfiLoop pid=4031 runtime=7572 [ns] vruntime=497839283800 [ns]
+    Ingress-14  4331 [020]  7320.911617:       sched:sched_wakeup: rcu_sched:9 [120] success=1 CPU:000
+    Ingress-14  4331 [020]  7324.190608:       sched:sched_wakeup: watchdog/20:106 [0] success=1 CPU:020
+    
+    then, it is decided to disable watchdog (manually at first for debug):
+    $ sysctl kernel.nmi_watchdog=0
+    and check this command run OK:
+    $ cat /proc/sys/kernel/nmi_watchdog   # content should be 0
+
+    then if use perf agagin, can not find switching between npu dp task and watchdog anymore.
+*** swapless PIM vm kernel
+    several days ago, I happened to find PIM vm kernel swap task sometimes run, can realy cost some CPU resources.
+    I think this is unneccessary and disable it via command:
+    $ echo 0 > /proc/sys/vm/swappiness
+*** tickless PIM vm kernel
+    timely tick may also be harmful to packet handling (refer to https://access.redhat.com/solutions/2273531), so disalbe it:
+    - add command line parameter "nohz_full=2-41" to /etc/default/grub
+      like: GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepagesz=1G hugepages=4 nohz_full=2-41 isolcpus=2-41 console=tty0 crashkernel=auto no_timer_check net.ifnames=0 console=ttyS0,115200n8"
+    - run: grub2-mkconfig -o /boot/grub2/grub.cfg
+    - reboot VM
+*** disalbe all cron jobs in PIM vm (debug try only)
+    command: systemctl stop crond
+*** can find delay if too many sched switch events:
+    "swapper 0" is system root process, it run when nothing to run.
+    
+    swapper 0 [008] Thu May 25 08:14:32 CST 2017.690073: sched:sched_switch: swapper
+    /8:0 [120] R ==> Ingress-2:4399 [120]
+    swapper 0 [016] Thu May 25 08:14:32 CST 2017.690080: sched:sched_switch: swapper
+    /16:0 [120] R ==> Ingress-10:4407 [120]
+    swapper 0 [018] Thu May 25 08:14:32 CST 2017.690082: sched:sched_switch: swapper
+    /18:0 [120] R ==> Ingress-12:4409 [120]
+    swapper 0 [024] Thu May 25 08:14:32 CST 2017.690089: sched:sched_switch: swapper
+    /24:0 [120] R ==> Ingress-18:4415 [120]
+    swapper 0 [032] Thu May 25 08:14:32 CST 2017.690092: sched:sched_switch: swapper
+    /32:0 [120] R ==> Ingress-26:4423 [120]
+    swapper 0 [015] Thu May 25 08:14:32 CST 2017.690094: sched:sched_switch: swapper
+    /15:0 [120] R ==> Ingress-9:4406 [120]
+    swapper 0 [017] Thu May 25 08:14:32 CST 2017.690097: sched:sched_switch: swapper
+    /17:0 [120] R ==> Ingress-11:4408 [120]
+    Ingress-6 4403 [012] Thu May 25 08:14:32 CST 2017.690629: sched:sched_switch: In
+    gress-6:4403 [120] D ==> swapper/12:0 [120]
+    Ingress-15 4412 [021] Thu May 25 08:14:32 CST 2017.690668: sched:sched_switch: I
+    ngress-15:4412 [120] D ==> swapper/21:0 [120]
+    Ingress-16 4413 [022] Thu May 25 08:14:32 CST 2017.690677: sched:sched_switch: I
+    ngress-16:4413 [120] D ==> swapper/22:0 [120]
+    Ingress-23 4420 [029] Thu May 25 08:14:32 CST 2017.690677: sched:sched_switch: I
+    ngress-23:4420 [120] D ==> swapper/29:0 [120]
+    Ingress-0 4397 [006] Thu May 25 08:14:32 CST 2017.690699: sched:sched_switch: In
+    gress-0:4397 [120] D ==> swapper/6:0 [120]
+    Ingress-25 4422 [031] Thu May 25 08:14:32 CST 2017.690705: sched:sched_switch: I
+    ngress-25:4422 [120] D ==> swapper/31:0 [120]
+    Ingress-17 4414 [023] Thu May 25 08:14:32 CST 2017.690730: sched:sched_switch: I
+*** trace cache status
+    http://www.brendangregg.com/blog/2014-12-31/linux-page-cache-hit-ratio.html
+    https://github.com/brendangregg/perf-tools
+    perf-tools-master.zip
+    bin/cachestat -t 1
+*** message ring (on 188 server)
+**** collect message ring log
+     fifo.tcl
+**** check message ring log
+     mgrep -d "d vi npu data statis ring" "RX-ring-process[0-9]+ +[0-9]+ +[0-9]+ +[0-9]{4}" fifo.0525.2 | more
+*** other things may try
+    1，观察dmesg
+    2，log文件的时间戳
+    3，syslog时间密度
+    4，静态load
+    5，关闭host任务：systemctl stop hp-snmp-agents
+    6，连续抓sched
+    7，numa观察，cache观察
+    8，SCM上创建log
+    9，更多的huge page
+    10，删除pkg
+    11，收集cache状态
+** bash script
+*** compare float point value: if [ $(echo "$cpu<5.0"|bc) -eq 1 ];then
+*** disable stdio cache when pipe: function() < <(stdbuf -i0 -o0 -e0 top -b -d 0.1|stdbuf -i0 -o0 -e0 grep -w $selected_cpu)
+*** date
+**** convert epoch seconds to date: date --date='@1495610551'
+**** convert date to epoch seconds: date -d "2017-05-25 18:43:13" +%s
+**** convert current date to epoch seconds: date +%s
+**** get system uptime in seconds: awk '{print $1}' /proc/uptime
+** trace Linux who change root password
+   In selinux /var/log/audit logs:
+   type=USER_CHAUTHTOK msg=audit(1495610551.948:360046): pid=22804 uid=0 auid=0 ses=38045 subj=unconfined_u:unconfined_r:passwd_t:s0-s0:c0.c1023 msg='op=PAM:chauthtok grantors=pam_pwquality,pam_unix acct="root" exe="/usr/bin/passwd" hostname=? addr=? terminal=pts/16 res=success'
+
+   In "last" command:
+   reboot   system boot  3.10.0-327.36.3. Thu May 25 02:05 - 06:51  (04:46)
+   root     pts/13       172.24.142.99    Wed May 24 09:02 - 09:24  (00:21)
+   root     pts/16       135.251.148.200  Wed May 24 07:22 - 07:22  (00:00)
+   root     pts/15       172.24.142.39    Wed May 24 07:18 - 09:20  (02:01)
+   root     pts/15       135.251.216.62   Wed May 24 07:08 - 07:08  (00:00)
+
+   In /var/log/secure:
+   May 24 07:18:43 sbc203-host01 sshd[16066]: pam_unix(sshd:session): session opened for user root by (uid=0)
+   May 24 07:22:15 sbc203-host01 sshd[22784]: Accepted password for root from 135.251.148.200 port 51938 ssh2
+   May 24 07:22:15 sbc203-host01 sshd[22784]: pam_unix(sshd:session): session opened for user root by (uid=0)
+   May 24 07:22:31 sbc203-host01 passwd: pam_unix(passwd:chauthtok): password changed for root
+   May 24 07:22:35 sbc203-host01 sshd[22784]: Received disconnect from 135.251.148.200: 11: disconnected by user
+   May 24 07:22:35 sbc203-host01 sshd[22784]: pam_unix(sshd:session): session closed for user root
+   May 24 07:23:29 sbc203-host01 unix_chkpwd[25268]: password check failed for user (root)
+   May 24 07:23:29 sbc203-host01 sshd[25266]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=135.251.216.62  user=root
+
+   and in ~/.bash_history can find command history.
+** perf performance
+   note the usage of annotate:
+   Annotate loopa
+     0.00 │      movl   $0x0,-0x4(%rbp)
+     0.01 │    ↓ jmp    2b
+     15.74│27:┌─→addl   $0x1,-0x4(%rbp)
+     1.95 │2b:│  cmpl   $0x3e7,-0x4(%rbp)
+     81.84│   └──jle    27
+          │    #include <string.h>
+          │    void loopa(int s)
+          │    {
+   then with gdb "disass /m loopa", we can find the source code corresponding to the offset 0x27(39) and 0x2b(43)
+    12                  for(j=0;j<1000;j++);
+      0x0000000000400492 <+30>:    movl   $0x0,-0x4(%rbp)
+      0x0000000000400499 <+37>:    jmp    0x40049f <loopa+43>
+      0x000000000040049b <+39>:    addl   $0x1,-0x4(%rbp)
+      0x000000000040049f <+43>:    cmpl   $0x3e7,-0x4(%rbp)
+      0x00000000004004a6 <+50>:    jle    0x40049b <loopa+39>
+** gdb break and auto command
+   $ cat gdbcmd
+   break ckvg.c:16
+   commands $bpnum
+   print array[0]
+   continue
+   end
+   
+   attach 48510
+   continue
+   
+   $ gdb ckvg
+   Reading symbols from /home/xujian/tmp/ckvg...done.
+   (gdb) source gdbcmd
+   Breakpoint 1 at 0x4005ae: file ckvg.c, line 16.
+   warning: process 48510 is a cloned process
+   0x00000034204accc0 in __nanosleep_nocancel () from /lib64/libc.so.6
+   
+   Breakpoint 1, childFunc (arg=0x0) at ckvg.c:16
+   16              sleep(1);
+   $1 = 0 '\000'
+   
+   Breakpoint 1, childFunc (arg=0x0) at ckvg.c:16
+   16              sleep(1);
+   $2 = 0 '\000'
+** Linux kni/namespace/team try
+   ip addr add 192.168.48.1/24 dev br910
+   nmtui
+   nmcli con show "Team connection 1"
+   805  ip link add link team1 name team1.10 type vlan id 10
+   806  ip link add link team1 name team1.20 type vlan id 20
+   808  ip netns add v10
+   810  ip link set team1.10 netns v10
+   811  ip netns exec v10 ip addr add 192.168.50.150/16 dev team1.10
+   813  ip netns exec v10 ip link set team1.10 up
+   814  ip netns exec v10 ip addr
+   815  ip netns exec v10 ping 192.168.50.1
+   
+   9  dpdk_nic_bind.py --bind=igb_uio  0000:00:0b.0
+   10  dpdk_nic_bind.py --bind=igb_uio  0000:00:0c.0
+   11  dpdk_nic_bind.py --status
+   start nodemgr
+   ./kni -c 0fc0000000 -n 1 --proc-type primary -- -P -p 3 --config="(0,30,31,32),(1,33,34,35)"
+   
+   # ip link set vEth0_0 down
+   APP: Configure network interface of 0 down
+   # ip link set vEth1_0 down
+   APP: Configure network interface of 1 down
+   # teamd -g -f team.cfg -d
+   Using team device "team1".
+   Using PID file "/var/run/teamd/team1.pid"
+   Using config file "/root/xujian/team.cfg"
+   This program is not intended to be run as root.
+   [ 3652.754752] team1: Mode changed to "activebackup"
+   APP: Configure network interface of 0 up
+   [ 3652.759912] team1: Port device vEth0_0 added
+   APP: Configure network interface of 1 up
+   [ 3652.762768] team1: Port device vEth1_0 added
+   [root@sbc02-media-pim19 xujian]# teamdctl team1 state
+   ----------------------
+   [root@sbc02-media-pim19 xujian]# cat cfg.sh
+   #!/bin/bash
+   if ! ip link show team1;then
+   echo ===============
+   echo config team1...
+   echo ===============
+   ip link set vEth0_0 down
+   ip link set vEth1_0 down
+   teamd -g -f team.cfg -d
+   ip link set team1 up
+   ip link
+   teamdctl team1 state
+   fi
+   
+   for((i=$1;i<=$2;i++));do
+   #echo =================
+   #echo config vlan $i...
+   #echo =================
+   ns=v${i}
+   ip link add link team1 name team1.$i type vlan id $i
+   ip netns add $ns
+   ip link set team1.$i netns $ns
+   ip netns exec $ns ip addr add 11.11.12.250/24 dev team1.$i
+   ip netns exec $ns ip link set team1.$i up
+   #ip netns exec $ns ip addr
+   done
+   
+   [root@sbc02-media-pim19 xujian]# cat dpdk.sh
+   #!/bin/bash
+   cd /root/xujian/target
+   if ! [ -d /mnt/huge ]
+   then
+   echo ===================
+   echo mount huge pages...
+   echo ===================
+   mkdir /mnt/huge
+   mount -t hugetlbfs nodev /mnt/huge
+   fi
+   
+   echo =================
+   echo update dpdk ko...
+   echo =================
+   rmmod rte_kni
+   rmmod igb_uio
+   insmod igb_uio.ko
+   insmod rte_kni.ko
+   
+   echo ========================
+   echo bind 10GE nif to dpdk...
+   echo ========================
+   tools/dpdk-devbind.py --bind=igb_uio  0000:00:0b.0
+   tools/dpdk-devbind.py --bind=igb_uio  0000:00:0c.0
+   tools/dpdk-devbind.py --status
+   
+   echo ==========
+   echo run kni...
+   echo ==========
+./kni -c 0fc0000000 -n 1 --proc-type primary -- -P -p 3 --config="(0,30,31,32),(1,33,34,35)"
+** git
+*** clone with proxy
+    git clone --config "http.proxy=135.245.48.34:8000" https://github.com/sipcapture/homer-docker.git
+    curl --proxy 135.245.48.34:8000 -L https://github.com/docker/compose/releases/download/1.6.2/run.sh > bin/docker-compose
+** check Linux bond interface status
+   # cat /proc/net/bonding/bond3
+   Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
+   
+   Bonding Mode: fault-tolerance (active-backup)
+   Primary Slave: eno3 (primary_reselect always)
+   Currently Active Slave: eno3
+   MII Status: up
+   MII Polling Interval (ms): 100
+   Up Delay (ms): 0
+   Down Delay (ms): 0
+   
+   Slave Interface: eno3
+   MII Status: up
+   Speed: 1000 Mbps
+   Duplex: full
+   Link Failure Count: 0
+   Permanent HW addr: 1c:98:ec:1c:07:5a
+   Slave queue ID: 0
+   
+   Slave Interface: eno4
+   MII Status: up
+   Speed: 1000 Mbps
+   Duplex: full
+   Link Failure Count: 0
+   Permanent HW addr: 1c:98:ec:1c:07:5b
+   Slave queue ID: 0
+** account backup
+*** redhat
+    username: qingbma
+    password: A7510team6
+    register redhat via these account with command subscription-manager-gui, and proper http proxy set.
+*** windriver
+    Web :  http://support.windriver.com/.
+    Usr   : Binda.Wang@alcatel-sbell.com.cn
+    Pwd : 4rfv$RFV
+** kvm/docker on Linux
+   On Redhat 6.5 server (188):
+   ================================
+   modprobe kvm
+   modprobe kvm_intel
+   setenforce 0
+   . myproxy
+   yum install qemu-kvm qemu-img
+   yum install virt-manager libvirt libvirt-python libvirt-client
+   service libvirtd start
+   service libvirtd status
+   virt-manager
+
+   In VM:
+   ================================
+   # enable eth0
+   vi /etc/sysconfig/network-scripts/ifcfg-eth0
+   systemctl restart network
+   # set http/https proxy
+   export http_proxy="http://135.245.48.34:8000"
+   export https_proxy="http://135.245.48.34:8000"
+   # configure dns
+   vi /etc/resolv.conf
+   # x11 display
+   export DISPLAY=172.24.142.171:0.0
+   # update packages
+   subscription-manager register
+   # remove attached pools
+   subscription-manager remove --all
+   # Service Level:       Self-Support from `subscription-manager list --available`
+   subscription-manager attach --pool=8a85f9895b465083015b46d2acd62df4
+   subscription-manager attach --auto  # may not work
+   yum update
+
+   # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/getting_started_with_containers/get_started_with_docker_formatted_container_images
+   # for docker, additional confiugre in vm
+   # .bashrc
+   export http_proxy="http://135.245.48.34:8000"
+   export https_proxy="http://135.245.48.34:8000"
+   export HTTP_PROXY="http://135.245.48.34:8000"
+   export HTTPS_PROXY="http://135.245.48.34:8000"
+   # /etc/sysconfig/docker
+   http_proxy="http://135.245.48.34:8000"
+   https_proxy="http://135.245.48.34:8000"
+   HTTP_PROXY="http://135.245.48.34:8000"
+   HTTPS_PROXY="http://135.245.48.34:8000"
+   
+   # from Gesciak, Krzysztof: VM proxy for docker
+   [root@epos02 docker]# cat /etc/systemd/system/docker.service.d/http-proxy.conf
+   [Service]
+   Environment="HTTP_PROXY=http://proxy.lbs.alcatel-lucent.com:8000/" "HTTPS_PROXY=http://proxy.lbs.alcatel-lucent.com:8000/" "NO_PROXY=localhost,registry.epos.local"
+   
+   [root@epos02 docker]# cat /etc/resolv.conf
+   options single-request
+   nameserver 10.2.11.3
+   nameserver 172.23.102.60
+   nameserver 135.239.25.18
+
+   In docker
+   ================================
+   # from Gesciak, Krzysztof: proxy config In docker
+   /etc/systemd/system/docker.service.d/http-proxy.conf is only applicable for docker service.
+   
+   So, it is used by docker to load image (docker search, docker pull).
+   When you start container, proxy setting is not passed into container.
+   
+   If you want to use it, you can specify http_proxy in your dockerfile
+   
+   Here is an example of dockerfile from Rapport: http://epos01.pl-lab.lucent.com:9000/cgit.cgi/EPOS_plat/tree/dockerfiles/Dockerfile.epos-doc
+   
+   ENV proxy=proxy.lbs.alcatel-lucent.com
+   ENV http_proxy=${http_proxy:-http://$proxy:8000}
+   ENV https_proxy=${https_proxy:-https://$proxy:8000}
+   
+   In that case entry proxy.lbs.alcatel-lucent.com must be resolved, you can use IP here of course.
+   To verify, run ‘docker run -ti ‘your image’ /bin/bash’ and manually execute your commands (wget …) to check if it works.
+** substitute '\n' with newline: sed 's/\\n/\n/g'
+** kernel task backtrace when has 'D' state in atop
+   echo w > /proc/sysrq-trigger
+   then:
+   dmesg
+** ip tools
+*** socat for proxy
+    udp proxy:
+    socat UDP4-LISTEN:30000,fork UDP4-SENDTO:135.251.216.188:40000
+    nc -u 127.0.0.1 30000
+
+    tcp proxy:
+    socat TCP-LISTEN:30000,fork TCP:135.251.216.188:40000
+    nc 127.0.0.1 30000
+*** iptables
+    snat:
+    iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+    dnat:
+    if FORWARD chain policy is drop: iptables -A FORWARD -i eth0 -p tcp --dport 80 -d 172.31.0.23 -j ACCEPT
+    iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to 172.31.0.23:80
+    examples of iptables for DMZ NAT:
+    https://www.cs.montana.edu/courses/309/topics/nat/dmz.html
+
+    mangle:
+    iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1452
+    http://andys.org.uk/bits/2010/01/27/iptables-fun-with-mark/
+    iptables -t mangle -A PREROUTING -p tcp --dport 22 -j MARK --set-mark 2
+    iptables -A PREROUTING -m mark --mark 0xE -j ACCEPT
+** Linux bootable usb
+   - plugin usb and mount it:
+     fdisk -l: /dev/sdb4   *          63   121063424    60531681    c  W95 FAT32 (LBA)
+     mount -t vfat /dev/sdb4 /root/usb
+   - on server 135.251.217.120 (root/;x7510j), run /home/xujian/bin/unetbootin-linux64-657.bin
+   - use GUI to "burn" iso into usb
+   - umount /root/usb
