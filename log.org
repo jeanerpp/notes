@@ -438,6 +438,12 @@
 *** clone with proxy
     git clone --config "http.proxy=135.245.48.34:8000" https://github.com/sipcapture/homer-docker.git
     curl --proxy 135.245.48.34:8000 -L https://github.com/docker/compose/releases/download/1.6.2/run.sh > bin/docker-compose
+    # set proxy
+    git config --global http.proxy http://135.245.48.34:8000
+    git config --global https.proxy http://135.245.48.34:8000
+    # unset proxy
+    git config --global --unset-all http.proxy
+    git config --global --unset-all https.proxy
 ** check Linux bond interface status
    # cat /proc/net/bonding/bond3
    Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
@@ -586,3 +592,51 @@
    - on server 135.251.217.120 (root/;x7510j), run /home/xujian/bin/unetbootin-linux64-657.bin
    - use GUI to "burn" iso into usb
    - umount /root/usb
+     however unetbootin can not work!!! use this way on verion >6.5
+   - mkfs.vfat -n 'centos7' -I /dev/sdb4
+   - dd if=./iso/CentOS-7-x86_64-DVD-1511.iso of=/dev/sdb
+   - sync && eject /dev/sdb
+** ps thread in my favorite way
+   $ ps -C wx-main -T -o pid,tid,class,psr,comm,cmd
+   52631 52631 TS   38 wx-main         wirextorm 2960
+   52631 52633 TS   37 wx-sctp-iterato wirextorm 2960
+   52631 52634 TS    0 wx-sctp-timer   wirextorm 2960
+   52631 52635 TS   38 wx-sending-0    wirextorm 2960
+   52631 52636 TS    0 wx-polling-0    wirextorm 2960
+** openvpn config
+   - install packages
+   yum install epel-release
+   yum -y install openvpn easy-rsa iptables-services
+
+   - generate keys
+   cp -a /usr/share/easy-rsa /etc/openvpn/
+   cd /etc/openvpn/easy-rsa/2.*/
+   vi vars
+   source ./vars
+   ./clean-all
+   ./build-ca
+   ./build-key-server server
+   ./build-dh
+   ./build-key client
+   cp -r keys/ /etc/openvpn/
+   cd /etc/openvpn/
+   openvpn --genkey --secret ta.key
+
+   - config: client.ovpn and server.conf
+   vi server.conf
+   mkdir /etc/openvpn/log
+   vi /etc/sysctl.conf: net.ipv4.ip_forward = 1
+
+   /cygdrive/c/Users/jixu/OpenVPN/config $ ls  # client key copy from server easy-rsa
+   ca.crt  client.crt  client.key  client.ovpn  ta.key
+   
+   [root@sbca log]# ls /etc/openvpn
+   client  easy-rsa  keys  log  server  server.conf
+
+   - iptables rules
+   iptables -I INPUT -p udp --dport 1194 -j ACCEPT
+   iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
+   iptables -t nat -I POSTROUTING -s 192.168.250.0/24 -o eno1 -j MASQUERADE
+
+   - start server
+   openvpn --config /etc/openvpn/server.conf &
