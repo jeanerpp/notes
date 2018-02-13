@@ -15,9 +15,26 @@
     0x833f9a24 is at new_allocator.h:69.
     64      new_allocator.h: No such file or directory.
     in new_allocator.h
-** logrotate
-   logrotate may be used to split a file automatically for MPU.TRA
-   it is defined in cron: /etc/cron.d/...
+** log
+*** journalctl -u network.service -x
+*** check Linux service name
+    chkconfig | grep -i openstack-cinder
+    systemctl list-unit-files
+**** logrotate
+     logrotate may be used to split a file automatically for MPU.TRA
+     it is defined in cron: /etc/cron.d/...
+**** 7510 syslog
+     [root@rms204-media-scm11 data]# grep "begin coredump" SYSLOG
+     Dec 27 09:00:25 rms204-media-scm11 nodemgr: signal_handle_core_msg(): begin coredump: pid(2751)
+     [root@rms204-media-scm11 data]# grep -w 2751 SYSLOG
+     Dec 27 09:00:25 rms204-media-scm11 sshd[2751]: rexec line 57: Deprecated option RSAAuthentication
+     Dec 27 09:00:25 rms204-media-scm11 sshd[2751]: rexec line 70: Deprecated option RhostsRSAAuthentication
+     Dec 27 09:00:25 rms204-media-scm11 sshd[2751]: rexec line 124: Deprecated option UseLogin
+     Dec 27 09:00:25 rms204-media-scm11 sshd[2751]: reprocess config line 57: Deprecated option RSAAuthentication
+     Dec 27 09:00:25 rms204-media-scm11 sshd[2751]: reprocess config line 70: Deprecated option RhostsRSAAuthentication
+     Dec 27 09:00:25 rms204-media-scm11 nodemgr: signal_handle_core_msg(): begin coredump: pid(2751)
+     Dec 27 09:00:25 rms204-media-scm11 nodemgr: signal_handle_core_msg(): finish coredump: pid(2751),
+
 ** 7510
 *** gfi dockor
     gfi doctor, may report CPU overload alarm, refer to:
@@ -29,6 +46,11 @@
    X11Forwarding yes
    X11UseLocalhost no
    AddressFamily inet
+
+   And install this package:
+   yum install xorg-x11-xauth
+   To solve problem like:
+   X11 forwarding request failed on channel 0
 
    Because I change my HOME directory, I need to:
    export XAUTHORITY=/home/xujian/.Xauthority
@@ -70,10 +92,12 @@
    http://elinux.org/Kernel_Trace_Systems
 *** atop
     atop can see exited process status during two sample period. To show cpu running on: "s    Show scheduling characteristics"
-    "atop -s", we are able to see that top run and exit during this peroid
+    "atop -sy", we are able to see that top run and exit during this peroid
     PID       TID      ENVID      TRUN      TSLPI     TSLPU      POLI      NICE      PRI      RTPR     CPUNR      ST      EXC      S       CPU     CMD         1/1
     18120         -          -         0          0         0      -            -        -         -         -      NE        0      E        0%     <top>
 *** perf
+    use "-fno-omit-frame-pointer" in gcc to easy perf call graph analysis.
+    
     howto make perf from new source:
     1 download from https://github.com/torvalds/linux
     2 in linux-master/tools/perf, run make
@@ -88,6 +112,7 @@
     this format is also find: perf record -e sched:sched_process_fork record bash
 
     record with call graph then display with "good" output:
+    perf record -g fp|dwarf,4096 -t 8046 # if perf support dwarf format
     perf record -g -t 8046
     perf report --call-graph --stdio -G
 *** trace-cmd
@@ -112,6 +137,8 @@
     Tasks: 132 total,   2 running, 130 sleeping,   0 stopped,   0 zombie
     %Cpu0  :  1.5 us, 23.5 sy, 13.2 ni,  0.0 id, 51.5 wa,  0.0 hi,  0.0 si, 10.3 st
     4365 root      39  19  121336   4004   1068 D  15.0  0.0   0:01.68 mandb  0
+
+    and related command: lsof, df, iotop (ref: http://bencane.com/2012/08/06/troubleshooting-high-io-wait-in-linux/)
 *** memory usage in buffers/cache
     Meaning of the buffers/cache line in the output of top
     https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Tuning_and_Optimizing_Red_Hat_Enterprise_Linux_for_Oracle_9i_and_10g_Databases/chap-Oracle_9i_and_10g_Tuning_Guide-Memory_Usage_and_Page_Cache.html
@@ -126,6 +153,24 @@
     check memory used by kernel:
     https://unix.stackexchange.com/questions/97261/how-much-ram-does-the-kernel-use
     slabtop, grep Slab /proc/meminfo, /proc/slabinfo, /proc/modules, dmesg
+*** oprofile
+    Refer to: http://oprofile.sourceforge.net/doc/opreport.html
+    # setup
+    [root@wirextorm1 xujian]# opcontrol --vmlinux=/boot/vmlinuz-2.6.32-431.el6.x86_64.wx1
+    [root@wirextorm1 xujian]# opcontrol --callgraph=32
+    [root@wirextorm1 xujian]# opcontrol --status
+    Daemon not running
+    Session-dir: /var/lib/oprofile
+    Separate options: none
+    vmlinux file: /boot/vmlinuz-2.6.32-431.el6.x86_64.wx1
+    Image filter: none
+    Call-graph depth: 20
+    # running
+    operf -p 20274 -g -t
+    opreport --callgraph --demangle=normal
+    opreport --symbols
+    opannotate --source
+
 ** auditd and trace signal
 *** watch file actions
     command setup: auditctl -w /home -p w
@@ -264,6 +309,13 @@
     5，关闭host任务：systemctl stop hp-snmp-agents
     6，连续抓sched
     7，numa观察，cache观察
+    # cat /sys/devices/system/node/node0/numastat
+    numa_hit 1055727933
+    numa_miss 0
+    numa_foreign 0
+    interleave_hit 33310
+    local_node 1055701026
+    other_node 26907
     8，SCM上创建log
     9，更多的huge page
     10，删除pkg
@@ -276,6 +328,7 @@
 **** convert date to epoch seconds: date -d "2017-05-25 18:43:13" +%s
 **** convert current date to epoch seconds: date +%s
 **** get system uptime in seconds: awk '{print $1}' /proc/uptime
+*** force user to change password: chage -d0 limiaocai
 ** trace Linux who change root password
    In selinux /var/log/audit logs:
    type=USER_CHAUTHTOK msg=audit(1495610551.948:360046): pid=22804 uid=0 auid=0 ses=38045 subj=unconfined_u:unconfined_r:passwd_t:s0-s0:c0.c1023 msg='op=PAM:chauthtok grantors=pam_pwquality,pam_unix acct="root" exe="/usr/bin/passwd" hostname=? addr=? terminal=pts/16 res=success'
@@ -471,6 +524,33 @@
    Link Failure Count: 0
    Permanent HW addr: 1c:98:ec:1c:07:5b
    Slave queue ID: 0
+** check host/vm network device mapping
+   $ virsh dumpxml 562
+   ...
+    <interface type='bridge'>
+      <mac address='82:01:20:83:01:01'/>
+      <source bridge='br910'/>
+      <target dev='vnet16'/>
+      <model type='virtio'/>
+      <filterref filter='mac-filter'/>
+      <alias name='net1'/>
+      <rom bar='on' file='/opt/vcp/share/ipxe/virtio-net.rom'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    </interface>
+   # in vm:
+   $ ethtool -i eth0
+    driver: virtio_net
+    version: 1.0.0
+    firmware-version:
+    expansion-rom-version:
+    bus-info: 0000:00:04.0
+    supports-statistics: no
+    supports-test: no
+    supports-eeprom-access: no
+    supports-register-dump: no
+    supports-priv-flags: no
+   # can see the pci slot both is 4, and the host device is vnet16, vm device is eth0
+   # the MAC addresses are also match
 ** account backup
 *** redhat
     username: qingbma
@@ -585,6 +665,18 @@
     http://andys.org.uk/bits/2010/01/27/iptables-fun-with-mark/
     iptables -t mangle -A PREROUTING -p tcp --dport 22 -j MARK --set-mark 2
     iptables -A PREROUTING -m mark --mark 0xE -j ACCEPT
+
+    display rules:
+    "iptables -v -L" shows rules on interface:
+    0     0 ACCEPT     all  --  lo     any     anywhere             anywhere
+    0     0 REJECT     all  --  any    any     anywhere             anywhere             reject-with icmp-host-prohibited        
+*** get linux pmtu
+    $ ip route get to 10.11.14.102
+    10.11.14.102 dev eth1  src 10.11.14.13
+    cache  mtu 1500 advmss 1460 hoplimit 64
+    $ ip route get to 10.11.14.102 from 10.11.14.13 dev eth1
+    10.11.14.102 from 10.11.14.13 dev eth1
+    cache  mtu 1500 advmss 1460 hoplimit 64
 ** Linux bootable usb
    - plugin usb and mount it:
      fdisk -l: /dev/sdb4   *          63   121063424    60531681    c  W95 FAT32 (LBA)
@@ -592,6 +684,7 @@
    - on server 135.251.217.120 (root/;x7510j), run /home/xujian/bin/unetbootin-linux64-657.bin
    - use GUI to "burn" iso into usb
    - umount /root/usb
+     ^^^^
      however unetbootin can not work!!! use this way on verion >6.5
    - mkfs.vfat -n 'centos7' -I /dev/sdb4
    - dd if=./iso/CentOS-7-x86_64-DVD-1511.iso of=/dev/sdb
@@ -634,9 +727,77 @@
    client  easy-rsa  keys  log  server  server.conf
 
    - iptables rules
-   iptables -I INPUT -p udp --dport 1194 -j ACCEPT
-   iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
+   iptables -I INPUT -p udp --dport 4891 -j ACCEPT
+   iptables -I INPUT -p tcp --dport 4891 -j ACCEPT
    iptables -t nat -I POSTROUTING -s 192.168.250.0/24 -o eno1 -j MASQUERADE
+   iptables -I FORWARD -p tcp -s 192.168.250.0/24 -j ACCEPT
+   iptables -I FORWARD -p udp -s 192.168.250.0/24 -j ACCEPT
 
    - start server
    openvpn --config /etc/openvpn/server.conf &
+
+   - with proxy
+     tcp mode
+     client proxy:
+     socat TCP-LISTEN:10000,fork TCP:135.251.217.191:10000
+     server proxy:
+     socat TCP-LISTEN:10000,fork TCP:127.0.0.1:4891
+     and don't forget enable proxy port:
+     iptables -I INPUT -p tcp --dport 10000 -j ACCEPT
+     iptables -I INPUT -p udp --dport 10000 -j ACCEPT
+** disable yum ipv6 repo
+   disable ipv6:
+   sysctl -w net.ipv6.conf.all.disable_ipv6=1
+   sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+   then:
+   systemctl restart network
+
+   then:
+   However you still try to contact IPv6 addresses, so the solution consists in adding this line
+     ip_resolve=4
+   to
+     /etc/yum.conf
+** openssl
+   read cert: openssl x509 -in /home/xujian/test/client-cert.pem -noout -text
+   read key : openssl rsa -in /home/xujian/test/client-key.pem -noout -text
+   cert fingerprint: openssl x509 -in /home/xujian/test/client-cert.pem -noout -sha256 -fingerprint
+** download/extract rpm package
+   repoquery --show-duplicates kernel-headers-3.10.0
+   yumdownloader kernel-headers-0:3.10.0-514.2.2.el7.x86_64
+   rpm2cpio ../kernel-headers-3.10.0-514.2.2.el7.x86_64.rpm | cpio -idmv
+
+   # tar install rpm files
+   rpm -q -l tcpdump | tar -czf tcpdump.tgz --files-from -
+** pv, vg, and lv
+   https://www.digitalocean.com/community/tutorials/an-introduction-to-lvm-concepts-terminology-and-operations
+** virtualization
+   modify qcow2 root password, use "libguestfs-tools-c".
+   LIBGUESTFS_BACKEND=direct virt-customize -a CentOS-7-x86_64-GenericCloud-1711.qcow2 --root-password password:abc123
+
+   Manualy create qcow2 from iso: https://docs.openstack.org/image-guide/centos-image.html
+
+   Modify qcow2: https://docs.openstack.org/image-guide/modify-images.html, http://libguestfs.org/guestfs-recipes.1.html
+   LIBGUESTFS_BACKEND=direct guestmount -a CentOS-7-x86_64-GenericCloud-1711.qcow2 -i --rw /mnt
+   chroot /mnt
+   # modify something
+   umount /mnt
+** eclipse
+   use behind http proxy, in eclipse.ini (directory where eclipse installed):
+   -Djava.net.useSystemProxies=true
+   -Dhttp.proxyHost=135.245.48.34
+   -Dhttp.proxyPort=8000
+   -Dhttps.proxyHost=135.245.48.34
+   -Dhttps.proxyPort=8000
+   -DsocksProxyHost=135.245.48.34
+   -DsocksProxyPort=8000
+   -Dftp.proxyHost=135.245.48.34
+   -Dftp.proxyPort=8000
+   -Dhttp.nonProxyHosts=localhost|127.0.0.1
+
+   In Eclipse, Window > Preferences > General > Network Connections, set Active Provider = Native.
+
+   For maven to use proxy, edit C:\Users\{username}\.m2\settings, then set in Maven → User Settings.
+   Refer to http://www.javahelps.com/2015/08/set-proxy-for-maven-in-eclipse.html, https://stackoverflow.com/questions/7737710/maven-plugin-not-using-eclipses-proxy-settings.
+
+   quick start maven in Linux: https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
