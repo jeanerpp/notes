@@ -147,12 +147,31 @@
     Meaning of the buffers/cache line in the output of free
     https://serverfault.com/questions/85470/meaning-of-the-buffers-cache-line-in-the-output-of-free
     A Linux system is really low on memory if the free value in -/+ buffers/cache: line gets low.
+                 total      used      free   shared buffers    cached
+    Mem:      12286456  11715372    571084        0   81912   6545228
+    -/+ buffers/cache:   5088232   7198224
+    Swap:     24571408     54528  24516880
 
     Use lsof to check all open files; use netstat to check pending bytes in socket. They will also consume buffers/cache.
 
     check memory used by kernel:
     https://unix.stackexchange.com/questions/97261/how-much-ram-does-the-kernel-use
     slabtop, grep Slab /proc/meminfo, /proc/slabinfo, /proc/modules, dmesg
+
+    https://serverfault.com/questions/23433/in-linux-what-is-the-difference-between-buffers-and-cache-reported-by-the-f
+    The "cached" total will also include some other memory allocations, such as any tmpfs filesytems. To see this in effect try:
+    
+    mkdir t
+    mount -t tmpfs none t
+    dd if=/dev/zero of=t/zero.file bs=10240 count=10240
+    sync; echo 3 > /proc/sys/vm/drop_caches; free -m
+    umount t
+    sync; echo 3 > /proc/sys/vm/drop_caches; free -m
+    and you will see the "cache" value drop by the 100Mb that you copied to the ram-based filesystem (assuming there was enough free RAM, you might find some of it ended up in swap if the machine is already over-committed in terms of memory use). The "sync; echo 3 > /proc/sys/vm/drop_caches" before each call to free should write anything pending in all write buffers (the sync) and clear all cached/buffered disk blocks from memory so free will only be reading other allocations in the "cached" value.
+    
+    The RAM used by virtual machines (such as those running under VMWare) may also be counted in free's "cached" value, as will RAM used by currently open memory-mapped files (this will vary depending on the hypervisor/version you are using and possibly between kernel versions too).
+    
+    So it isn't as simple as "buffers counts pending file/network writes and cached counts recently read/written blocks held in RAM to save future physical reads", though for most purposes this simpler description will do.
 *** oprofile
     Refer to: http://oprofile.sourceforge.net/doc/opreport.html
     # setup
@@ -329,6 +348,17 @@
 **** convert current date to epoch seconds: date +%s
 **** get system uptime in seconds: awk '{print $1}' /proc/uptime
 *** force user to change password: chage -d0 limiaocai
+*** process priority
+    Use top seems to be the correct value.
+    
+    $ ps -eT -o pid,tid,comm,pri,ni
+    1101  1366 docker-containe  19   0
+    $ renice +19 -p 1366
+    1101  1366 docker-containe   0  19
+    $ ps -eT -o pid,tid,comm,pri,ni
+    1101  1366 docker-containe   0  19
+    $ top -b -H
+    1366 root      39  19  205632   5808   3388 S  0.0  0.1   0:00.00 docker-containe
 ** trace Linux who change root password
    In selinux /var/log/audit logs:
    type=USER_CHAUTHTOK msg=audit(1495610551.948:360046): pid=22804 uid=0 auid=0 ses=38045 subj=unconfined_u:unconfined_r:passwd_t:s0-s0:c0.c1023 msg='op=PAM:chauthtok grantors=pam_pwquality,pam_unix acct="root" exe="/usr/bin/passwd" hostname=? addr=? terminal=pts/16 res=success'
@@ -643,6 +673,7 @@
    dmesg
 ** ip tools
 *** socat for proxy
+    use nc to send/receive packets
     udp proxy:
     socat UDP4-LISTEN:30000,fork UDP4-SENDTO:135.251.216.188:40000
     nc -u 127.0.0.1 30000
@@ -745,19 +776,22 @@
      and don't forget enable proxy port:
      iptables -I INPUT -p tcp --dport 10000 -j ACCEPT
      iptables -I INPUT -p udp --dport 10000 -j ACCEPT
-** disable yum ipv6 repo
-   disable ipv6:
-   sysctl -w net.ipv6.conf.all.disable_ipv6=1
-   sysctl -w net.ipv6.conf.default.disable_ipv6=1
+** yum 
+*** disable yum ipv6 repo
+    disable ipv6:
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1
+    sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-   then:
-   systemctl restart network
+    then:
+    systemctl restart network
 
-   then:
-   However you still try to contact IPv6 addresses, so the solution consists in adding this line
-     ip_resolve=4
-   to
-     /etc/yum.conf
+    then:
+    However you still try to contact IPv6 addresses, so the solution consists in adding this line
+      ip_resolve=4
+    to
+      /etc/yum.conf
+*** specific yum repo
+    yum install --disablerepo="*" --enablerepo="7_x86_64_*" procmail
 ** openssl
    read cert: openssl x509 -in /home/xujian/test/client-cert.pem -noout -text
    read key : openssl rsa -in /home/xujian/test/client-key.pem -noout -text
@@ -801,3 +835,10 @@
    Refer to http://www.javahelps.com/2015/08/set-proxy-for-maven-in-eclipse.html, https://stackoverflow.com/questions/7737710/maven-plugin-not-using-eclipses-proxy-settings.
 
    quick start maven in Linux: https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
+** use hash to generate passwd:
+   $ openssl sha -sha1 -hex <<< 201802 | cut -d' ' -f 2 | cut -c -8
+   ec0eae8c
+   Then: ;xec0eae8cj02
+** convert doc to pdf format
+   unoconv mydoc.pptx
+   
