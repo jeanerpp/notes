@@ -887,3 +887,34 @@
    "ssh_url": "git@github.west.isilon.com:eng-cee/isilon-cee.git",
    "ssh_url": "git@github.west.isilon.com:eng-cee/cee-tools.git",
 
+** find all hard link files in current directory
+   for i in $(find . -type f -links +1 2>/dev/null); do find -samefile $i 2>/dev/null | awk '{printf "%s ", $1}'; printf "\n"; done | sort | uniq
+** get https cert info
+   openssl s_client -showcerts -connect github.com:443 </dev/null 2>/dev/null|openssl x509 -outform PEM
+** curl: (60) Peer's Certificate issuer is not recognized
+   root@EAT /home/xujian/tmp # yum install ca-certificates
+   Loaded plugins: fastestmirror
+   Loading mirror speeds from cached hostfile
+ * base: mirrors.cat.pdx.edu
+ * epel: mirrors.lug.mtu.edu
+ * extras: mirror.dal10.us.leaseweb.net
+ * updates: mirrors.cat.pdx.edu
+   Package ca-certificates-2018.2.22-70.0.el7_5.noarch already installed and latest version
+   Nothing to do
+   root@EAT /home/xujian/tmp # update-ca-trust force-enable
+   root@EAT /home/xujian/tmp # ls /etc/pki/ca-trust/source/anchors/
+   # get cert file from browser, such as chrome, then save as emc_root.cer
+   root@EAT /home/xujian/tmp # openssl x509 -in emc_root.cer -inform der -outform pem -out emc_root.pem
+   root@EAT /home/xujian/tmp # cp emc_root.pem /etc/pki/ca-trust/source/anchors/
+   root@EAT /home/xujian/tmp # update-ca-trust extract
+   root@EAT /home/xujian/tmp # exit
+** pip install fails with ¡°connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:598)¡±
+   at last solved by global pip.conf:
+   xujian@EAT ~/storage/notes $ cat /etc/pip.conf
+   [global]
+   trusted-host = pypi.python.org
+                  pypi.org
+                  files.pythonhosted.org
+
+** virt-manager corrupted font when X forwarding
+   yum install dejavu-lgc-sans-fonts
