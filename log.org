@@ -918,3 +918,89 @@
 
 ** virt-manager corrupted font when X forwarding
    yum install dejavu-lgc-sans-fonts
+
+** elasticsearch
+   # for indice "regression_wheel_dashboard", type "test_info":
+     "_index": "regression_wheel_dashboard",
+     "_type": "test_info",
+     "_id": "AWOA9hcLc7O0-xfn3hBG",
+     "_version": 2,
+
+   # How to list elasticsearch indices
+   curl -XGET "http://elasticsearch.elk.apps.isilon.com:9200/_cat/indices?v"
+
+   # Run in KIBANA dev tools console
+   # fix "Fielddata is disabled on text fields by default" issue, so the text fields can index document
+   GET regression_wheel_dashboard/test_info/_search
+   {
+     "query": {
+       "match_all": {}
+     },
+     "aggs": {
+       "tests_by_branch": {
+         "terms": {
+           "field": "branch",
+           "size": 10
+         }
+       }
+     }
+   }
+   
+   PUT regression_wheel_dashboard/_mapping/test_info
+   {
+     "properties": {
+       "branch": { 
+         "type":     "text",
+         "fielddata": true
+       }
+     }
+   }
+   
+   # dump es mapping
+   curl -XGET http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/_mapping/test_info
+   
+   # search in URL
+   http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/test_info/_search
+
+** VM inside VMWARE VM (but the performance is pool)
+   yum install virt-manager
+   yum install qemu
+   yum install libvirt
+   yum install qemu-kvm qemu-kvm-common
+   yum install seabios
+   systemctl start libvirtd
+   systemctl enable libvirtd
+
+** xrdp + tigervnc
+   https://www.itzgeek.com/how-tos/linux/centos-how-tos/install-xrdp-on-centos-7-rhel-7.html
+
+   # installation
+   yum groupinstall "GNOME Desktop" "Graphical Administration Tools"
+   yum -y install xrdp tigervnc-server
+   yum groupinstall "Server with GUI"
+
+   systemctl start xrdp
+   systemctl enable xrdp
+
+   # allow all user to login with XRDP
+   /etc/xrdp/sesman.ini
+   ; TerminalServerUsers=tsusers
+   ; TerminalServerAdmins=tsadmins
+
+   # do not set DISPLAY in case XRDP
+   if [ -z $XRDP_SESSION ];then
+     export DISPLAY=$(who am i|cut -d'(' -f 2|cut -d')' -f 1):0.0
+   fi
+
+   # correct permissionn problem after first failure login
+   chown xujian:xujian /run/user/1000/dconf
+
+   # not needed since selinux disabled
+   chcon --type=bin_t /usr/sbin/xrdp
+   chcon --type=bin_t /usr/sbin/xrdp-sesman
+
+** gnome settings
+   # enabe fraction scale, but seems not work
+   gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
+   # security?
+   gsettings set org.gnome.Vino require-encryption false
