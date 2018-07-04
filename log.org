@@ -999,8 +999,46 @@
    chcon --type=bin_t /usr/sbin/xrdp
    chcon --type=bin_t /usr/sbin/xrdp-sesman
 
+   # gnome has performance issue: gnone-shell llvmpipe graphic rendering on CPU, not GPU.
+   # so switch to KDE to fix:
+   yum groupinstall 'KDE'
+   
+   xujian@EAT ~ $ ls -l ~/.Xclients
+   -rwxr-xr-x 1 xujian xujian 9 Jul  4 11:51 /home/xujian/.Xclients
+   xujian@EAT ~ $ cat .Xclients
+   startkde
+
 ** gnome settings
+   # list settings
+   gsettings list-keys org.gnome.Vino
+   
    # enabe fraction scale, but seems not work
    gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
+   
    # security?
    gsettings set org.gnome.Vino require-encryption false
+
+   # lock screen after 1 hour
+   gsettings set org.gnome.desktop.session idle-delay 3600
+
+** pip use additional repo
+   xujian@EAT ~/.config/pip $ cat /home/xujian/.config/pip/pip.conf
+   [global]
+   extra-index-url = http://artifactory.west.isilon.com:8081/artifactory/api/pypi/pypi-repo/simple
+   trusted-host = artifactory.west.isilon.com
+
+   As stated in the documentation, the default locations for Linux are:
+   per-user: $HOME/.config/pip/pip.conf
+   global: /etc/pip.conf
+   export PIP_CONFIG_FILE = /path/to/pip.conf
+
+   Can also define base repo:
+   index-url = http://download.zope.org/ppix
+   
+** repaire corrupted python package
+   easy_install -U urllib3
+   this way is more powerful than pip install
+   
+** centos7 NFS client/server setup
+   https://www.howtoforge.com/nfs-server-and-client-on-centos-7
+   
