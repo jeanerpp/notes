@@ -666,6 +666,8 @@
    
    In that case entry proxy.lbs.alcatel-lucent.com must be resolved, you can use IP here of course.
    To verify, run ¡®docker run -ti ¡®your image¡¯ /bin/bash¡¯ and manually execute your commands (wget ¡­) to check if it works.
+*** enable normal user to access docker service
+    usermod -aG docker xujian
 ** substitute '\n' with newline: sed 's/\\n/\n/g'
 ** kernel task backtrace when has 'D' state in atop
    echo w > /proc/sysrq-trigger
@@ -908,6 +910,39 @@
    root@EAT /home/xujian/tmp # cp emc_root.pem /etc/pki/ca-trust/source/anchors/
    root@EAT /home/xujian/tmp # update-ca-trust extract
    root@EAT /home/xujian/tmp # exit
+** java cert ca problem
+   # Jenkins fail to install some plugins because of this
+   # the Linux Java cacerts dir:
+   [root@base /]# ls -l ./etc/pki/java/cacerts
+   lrwxrwxrwx. 1 root root 40 Jul  4 10:34 ./etc/pki/java/cacerts -> /etc/pki/ca-trust/extracted/java/cacerts
+   [root@base /]# ls -l /etc/pki/ca-trust/extracted/java/cacerts
+   -r--r--r--. 1 root root 160286 Jul  4 10:34 /etc/pki/ca-trust/extracted/java/cacerts
+   [root@base /]# ls -l ./usr/lib/jvm/java-1.8.0-openjdk-1.8.0.181-3.b13.el7_5.x86_64/jre/lib/security/cacerts
+   lrwxrwxrwx. 1 root root 41 Aug 16 13:21 ./usr/lib/jvm/java-1.8.0-openjdk-1.8.0.181-3.b13.el7_5.x86_64/jre/lib/security/cacerts -> ../../../../../../../etc/pki/java/cacerts
+   [root@base /]# ls -l ./usr/lib/jvm/java-1.7.0-openjdk-1.7.0.191-2.6.15.4.el7_5.x86_64/jre/lib/security/cacerts
+   lrwxrwxrwx. 1 root root 41 Aug 16 22:33 ./usr/lib/jvm/java-1.7.0-openjdk-1.7.0.191-2.6.15.4.el7_5.x86_64/jre/lib/security/cacerts -> ../../../../../../../etc/pki/java/cacerts
+
+   # set trusted ca:
+   openssl x509 -in <(openssl s_client -connect plugins.jenkins.io:443 -prexit 2>/dev/null) -out ~/example.crt
+   keytool -importcert -file jenkins_plugin.crt -alias jenkins_plugin -keystore /etc/pki/java/cacerts -storepass changeit
+
+   # for script for this
+   #!/bin/bash
+   key_name=$(echo $https_host_name| tr '.' '_').crt
+   https_host_name=$1
+   openssl s_client -connect $https_host_name:443 -prexit <<< quit
+
+   echo
+   echo
+   echo "captured key $key_name:"
+
+   openssl x509 -in <(openssl s_client -connect $https_host_name:443 -prexit 2>/dev/null) -out ~/$key_name && cat ~/$key_name &&
+   keytool -importcert -file ~/$key_name -alias $(echo $https_host_name| tr '.' '_') -keystore /etc/pki/java/cacerts -storepass changeit
+
+
+   # However can not find Linux ControlPanel to set this:
+   -Dcom.sun.net.ssl.checkRevocation=false
+
 ** pip install fails with ¡°connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:598)¡±
    at last solved by global pip.conf:
    xujian@EAT ~/storage/notes $ cat /etc/pip.conf
@@ -931,6 +966,7 @@
 
    # Run in KIBANA dev tools console
    # fix "Fielddata is disabled on text fields by default" issue, so the text fields can index document
+   # this is aggres query:
    GET regression_wheel_dashboard/test_info/_search
    {
      "query": {
@@ -945,13 +981,22 @@
        }
      }
    }
-   
+   # to enable in 5.x
    PUT regression_wheel_dashboard/_mapping/test_info
    {
      "properties": {
        "branch": { 
          "type":     "text",
          "fielddata": true
+       }
+     }
+   }
+   # to enable in 6.x
+   PUT regression_wheel_dashboard/_mapping/test_info
+   {
+     "properties": {
+       "branch": { 
+         "type":     "keyword",
        }
      }
    }
@@ -962,6 +1007,75 @@
    # search in URL
    http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/test_info/_search
 
+*** count for time related status
+    POST rw_dashboard_test_info/test_info/_search
+    {
+      "size": 0, 
+      "query":
+      {
+            "bool": {
+                "must": [
+                    {
+                        "range": {
+                            "queue_time": {
+                                "lt": "2018-07-13T12:00:00"
+                            }
+                        }
+                    },
+                    {
+                        "range": {
+                            "start_time": {
+                                "gte": "2018-07-13T12:00:00"
+                            }
+                        }
+                    }                    
+                ]
+            }        
+      }
+    }
+*** aggression with value range
+    POST rw_dashboard_test_info/test_info/_search
+    {
+      "size": 0, 
+      "query":
+      {
+        "match_all" : {}
+      },
+      "aggs":{
+          "per_tt":{
+              "date_histogram": {
+                  "field": "start_time",
+                  "interval": "day"
+              },
+              "aggs" : {
+                "pid_ranges" : {
+                    "range" : {
+                        "field" : "id",
+                        "ranges" : [
+                            { "to" : 100.0 },
+                            { "from" : 100.0, "to" : 200.0 },
+                            { "from" : 200.0 }
+                        ]
+                    }
+                }
+              }
+            }
+        }
+    }
+    
+*** get mapping
+    GET rw_dashboard_test_info/_mapping/test_info
+
+*** set mapping
+    PUT rw_dashboard_test_info/_mapping/test_info
+    {
+      "properties": {
+        "in_queued_seconds":{
+          "type": "long"
+        }
+      }
+    }
+    
 ** VM inside VMWARE VM (but the performance is pool)
    yum install virt-manager
    yum install qemu
@@ -1008,6 +1122,19 @@
    xujian@EAT ~ $ cat .Xclients
    startkde
 
+   # session control, in sesman.ini:
+   [Sessions]
+   ;; Policy - session allocation policy
+   ; Type: enum [ "Default" | "UBD" | "UBI" | "UBC" | "UBDI" | "UBDC" ]
+   ; Default: Xrdp:<User,BitPerPixel> and Xvnc:<User,BitPerPixel,DisplaySize>
+   ; "UBD" session per <User,BitPerPixel,DisplaySize>
+   ; "UBI" session per <User,BitPerPixel,IPAddr>
+   ; "UBC" session per <User,BitPerPixel,Connection>
+   ; "UBDI" session per <User,BitPerPixel,DisplaySize,IPAddr>
+   ; "UBDC" session per <User,BitPerPixel,DisplaySize,Connection>
+   Policy=Default
+
+
 ** gnome settings
    # list settings
    gsettings list-keys org.gnome.Vino
@@ -1042,3 +1169,12 @@
 ** centos7 NFS client/server setup
    https://www.howtoforge.com/nfs-server-and-client-on-centos-7
    
+** VS code for python virtualenv
+   in VS user setting:
+   "python.linting.pylintPath": "/bin/pylint"
+   
+   in virtualenv directory:
+   $ cat bugreport/.vscode/settings.json
+   {
+       "python.pythonPath": "${workspaceFolder}/bin/python"
+   }
