@@ -1,0 +1,249 @@
+* root
+** PSA
+   Tom [2:52 PM]
+   bugReports PSA PR is submitted at https://github.west.isilon.com/isilon/tech-doc/pull/409
+
+   Tom [3:11 PM]
+   for PSA or DDD:
+   https://github.west.isilon.com/isilon/tech-doc
+
+   1. install texStudio
+   2. put isialpha.bst, isi-article.cls, isi-extensions.sty into the dir where you put your .tex file
+   3. edit the .text using texStudio and build into PDF
+   4. fork isilon/tech-doc, upload your .tex and pdf files and submit PR
+   5. PSA sample: https://github.west.isilon.com/isilon/tech-doc/pull/409/files#diff-b87a6ebb229dc3e4789060e17b6869dd
+      DDD sample: https://github.west.isilon.com/isilon/tech-doc/tree/master/DDD/engineering_automation/saltstack
+   @here above is PSA/DDD process
+** Bug
+*** patch
+    Bug 229967 - Changes to elf_differ.sh in correlation PR #33 introduce false positives, inflating patched file lists and introducing unnecessary conflicts
+    Bug 231715 - multiple types within one indices is not allowed in elasticsearch 6.x
+    Bug 227753 - no pids in procstat after (un)install for stats_d and flexnet.so
+    Bug 231919 - uwsgi variable month name string length cause ELF file diff
+
+    1.1	Manual files list 
+    231291
+    cri	N/A	EngTools::Patch_Auto	ctabor	RESO	RETE	Patch Automation should support manual file list for OneFS8 patches
+    1.2	Manual patch conflicts list
+    215986
+    blo	N/A	EngTools::Patch_Auto	ctabor	VERI	FIXE	Spog: Conflicting Patches don't go away after they are removed.
+    1.3	Handle hardlink files in mechanics test
+    227753
+    cri	N/A	EngTools::Patch_Auto	ctabor	REOP	---	no pids in procstat after (un)install for stats_d and flexnet.so
+*** rw
+    The bugs that most impact to us:
+    Bug 227270 - Tests that are User stopped didn't release the console of the nodes
+    stopped in some test status, that cause console abnormal, maybe some script run something cause OS abnormal then console NOK.
+    
+    bug 228715    cri    N/A    FS: Events    eng-fs-infra    NEW    ---    Onefs with incorrect event ' CPU Module located in chassis JWXNC162200030 slot 4 has failed. Replace the following component as soon as possible: Compute Node'
+    no idea: CPU alarm. plug out/in CPU alarm disappear
+    
+    Bug 226236 - Run `isi_var_migrate --undo` before isi_reimage on RW nodes
+    degrade. OS SYS on boot flash. mounted to /var0-1, /root0-1 fs, file system is in degrade state.
+    
+    Bug 227143 - smartlock_regression_fvt.list results node into compliance mode
+    why into compliance mode?
+    
+    bug 226244 - reimage timeout  (a lot of) (edited)
+    many many reason, such as hardware.xml format wrong, so why xml misformatted;
+    new freebsd version boot time too long: before from NVRAM, now from disk.
+    So whether PXE for all prep can solve reimage timeout issue, and also need not login(not available indeed) to corupted server to do recover.
+
+    Jimmy req:
+    prep with the newer version
+    build elasticsearch for big data?
+** leankit
+   Leankit req:
+   https://isilon.leankit.com/card/688274532
+   https://isilon.leankit.com/card/688249838
+** Patch
+   Run correlation module test:
+   correlation $ PYTHONPATH=. python -m pytest tests
+*** DONE Bug 234284 - Correlation job miss files
+    CLOSED: [2018-08-02 Thu 18:05]
+    - State "DONE"       from "TODO"       [2018-08-02 Thu 18:05]
+    - State "TODO"       from              [2018-08-02 Thu 17:55]
+*** DONE Bug 230871 - Correlation did not find following difference
+    CLOSED: [2018-08-02 Thu 18:05]
+    - State "DONE"       from "TODO"       [2018-08-02 Thu 18:05]
+    - State "TODO"       from              [2018-08-02 Thu 18:04]
+
+
+*** TODO Bug 234363 - patch correlation should include meaningful manual page changes
+
+    - State "TODO"       from              [2018-08-03 Fri 10:02]
+*** TODO Bug 234298 - PR failed right after kicking off the "Roll Patch"
+    - State "TODO"       from              [2018-08-03 Fri 10:03]
+*** TODO Bug 231474 - Patch Automation can't skip services restarting test even if the services are not selected in "Manual Svcs"
+    - State "TODO"       from              [2018-08-03 Fri 10:03]
+*** TODO Bug 233838 - Patch mechanics test should handle the case of adding new service process
+    - State "TODO"       from              [2018-08-03 Fri 10:04]
+*** TODO Bug 229650 - Failed job due to description mismatch
+    - State "TODO"       from              [2018-08-03 Fri 10:04]
+** github
+   git remote add upstream git@github.west.isilon.com:IME-Patch/correlation.git
+   git pull upstream master --rebase
+   git fetch upstream
+   git branch -a
+   git status
+   git merge upstream/master
+** elasticsearch
+   URL search:
+   http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/test_info/_search
+
+   Syntax in Kibana dev tools:
+   GET regression_wheel_dashboard/test_info/_search
+   {
+     "query": {
+       "match_all": {}
+     },
+     "aggs": {
+       "tests_by_branch": {
+         "terms": {
+           "field": "branch",
+           "size": 10
+         }
+       }
+     }
+   }
+  
+   PUT regression_wheel_dashboard/_mapping/test_info
+   {
+     "properties": {
+       "branch": { 
+         "type":     "text",
+         "fielddata": true
+       }
+     }
+   }
+  
+   #get error 402:
+   GET regression_wheel_dashboard/test_info/_search
+   {
+     "query": {
+       "match_all": {}
+     },
+     "aggs": {
+       "tests_by_branch": {
+                   "date_histogram": {
+                       "field": "queue_time",
+                       "interval": 100
+                   },
+                   "aggs": {
+                       "group_by_user": {
+                           "terms": {
+                               "field": "queued_by",
+                               "show_term_doc_count_error": true,
+                               "shard_size": 100,
+                               "size": 100
+                           }
+                       }
+                   }
+               }
+       }
+   }
+  
+  
+   {
+       "query": {
+           "bool": {
+               "must": [
+                   {
+                       "range": {
+                           "start_time": {
+                               "gte": "2018-06-01T00:00:00", "lte": "2018-06-02T00:00:00"
+                                   }
+                       }
+                   },
+                   {
+                       "terms": {
+                           "status":
+                               ["Build System Exception", "Did Not Launch", "Died Unexpectedly", "Failed", "Setup Failure", "Stopped", "Stopping", "Unhandled Exception", "User Stopped", "Succeeded", "Queued", "Running", "Assigned", "Stopping"]
+                               }
+                   }
+                   ]
+                   }
+       },
+           "size": 9999
+   }
+  
+  
+  
+   GET regression_wheel_dashboard/test_info/_search
+   {
+           "size": 9999,
+           "query": {
+             "bool": {
+               "must": [
+                 {
+                   "range": {
+                     "start_time": {
+                         "gte": "2018-06-01T00:00:00",
+                         "lte": "2018-06-02T00:00:00"
+                     }
+                   }
+                 },
+                 {
+                       "terms": {
+                           "status": [ "Build System Exception"]
+                       }
+                 }              
+               ]
+             }
+           }
+   }
+  
+   GET regression_wheel_dashboard/test_info/_search
+   {
+           "size": 9999,
+           "query": {
+             "bool": {
+               "must": [
+                 {
+                   "range": {
+                     "start_time": {
+                         "gte": "2018-06-01T00:00:00",
+                         "lte": "2018-06-08T00:00:00"
+                     }
+                   }
+                 },
+                 {
+                       "terms": {
+                           "status.keyword": ["Setup Failure", "Succeeded"]
+                       }
+                 }              
+               ]
+             }
+           }
+   }
+** vagrant on centos 7
+   # install packages
+   curl -k https://releases.hashicorp.com/vagrant/2.1.2/vagrant_2.1.2_x86_64.rpm -o vagrant_2.1.2_x86_64.rpm
+   rpm -i vagrant_2.1.2_x86_64.rpm
+   # need to disable secure sign in repo config:
+   wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
+   yum install VirtualBox-5.2
+   # install corresponding kernel head then setup virtualbox driver
+   uname -r
+   yum install kernel-devel-3.10.0-862.3.2.el7.x86_64
+   yum install kernel-headers-3.10.0-862.3.2.el7.x86_64
+   rcvboxdrv setup
+   # disable secure vagrant box download
+   config.vm.box_download_insecure = true
+** DB access
+   bugzilla: mysql -h eng-sea-bugsdb02.west.isilon.com -u bugreports -pzippy bugs42
+   buildweb: mysql -h builddb.west.isilon.com -u readonly build
+   machinedb: psql -h machinedb02.prod.sea1.west.isilon.com -U readonly -d machine
+** github op for patch
+   git clone git@github.west.isilon.com:xjian/onefs.git
+   git remote add ime-patch git@github.west.isilon.com:IME-Patch/Patches.git
+   git fetch ime-patch
+   git checkout remotes/ime-patch/BR_BUG_PATCH_232710_PROD
+   git checkout -b BR_BUG_PATCH_233180
+   git cherry-pick 1e0f3fc4386b10ae002d83a2712546989ec5a979 # if we want additional modification
+   git push origin BR_BUG_PATCH_233180
+
+** TODO plan for patch tool transfer
+   DEADLINE: <2018-08-29 Wed>
+** TODO new dashboard
+   DEADLINE: <2018-09-15 Sat>
