@@ -242,8 +242,40 @@
    git checkout -b BR_BUG_PATCH_233180
    git cherry-pick 1e0f3fc4386b10ae002d83a2712546989ec5a979 # if we want additional modification
    git push origin BR_BUG_PATCH_233180
+** bugreports
+*** how to count bug according data range
+    File "/usr/lib/python2.7/site-packages/flask/app.py", line 1598, in dispatch_request
+    return self.view_functions[rule.endpoint](**req.view_args)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/bp.py", line 216, in report
+    content = report_mappings[name](**data)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/releases/pipeline.py", line 112, in generate
+    report_section('report_triage'),
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/release_dashboard.py", line 571, in generate
+    res = generate_guts(**config)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/release_dashboard.py", line 584, in generate_guts
+    abd(bd)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/release_dashboard.py", line 293, in analyze_bugsdb
+    analyze_bugs_activity(bd)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/release_dashboard.py", line 213, in analyze_bugs_activity
+    get_activity()
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/profiling.py", line 15, in timed
+    result = method(*args, **kw)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/release_dashboard.py", line 208, in get_activity
+    who, bug_when, field, added, removed)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/models.py", line 1225, in process_change
+    self.process_to(when, when.date())
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/models.py", line 1181, in process_to
+    self.process_transitions_to_time(to_time, to_date)
+    File "/home/xujian/dev/bugreport/bugreports/bugreports/models.py", line 1150, in process_transitions_to_time
+    self.tabulate_transitions(self.last_update_date)
 
 ** TODO plan for patch tool transfer
    DEADLINE: <2018-08-29 Wed>
 ** TODO new dashboard
    DEADLINE: <2018-09-15 Sat>
+** TODO need white file list in patch maker
+** TODO dashboard RW/build/DT
+   - end to end of alarming and trouble shooting.
+   - learn from isilon dashboard.
+   - test running vs hardware status, ask heavily on illustration/analysis of background data/status.
+   

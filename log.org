@@ -798,6 +798,7 @@
    read cert: openssl x509 -in /home/xujian/test/client-cert.pem -noout -text
    read key : openssl rsa -in /home/xujian/test/client-key.pem -noout -text
    cert fingerprint: openssl x509 -in /home/xujian/test/client-cert.pem -noout -sha256 -fingerprint
+   read ca bundle: openssl crl2pkcs7 -nocrl -certfile cacert.pem | openssl pkcs7 -print_certs -noout
 ** download/extract rpm package
    repoquery --show-duplicates kernel-headers-3.10.0
    yumdownloader kernel-headers-0:3.10.0-514.2.2.el7.x86_64
@@ -1178,3 +1179,14 @@
    {
        "python.pythonPath": "${workspaceFolder}/bin/python"
    }
+
+** elasticsearch/kibana diagrams
+
+*** timelion
+    .es(timefield=queue_time, q='(status:"Setup Failure") OR (status:"Did Not Launch")').label('Infra Error Trend').trend().lines(width=1), .es(timefield=queue_time, q='(status:"Setup Failure") OR (status:"Did Not Launch")').mvavg(3d).label('Infra Error'), .es(timefield=start_time, q=*).mvavg(3d).label('capacity'), .es(timefield=start_time, q=*).label('capacity trend').trend().lines(width=1)
+    .es(timefield=start_time,q='supported_hw:"infinity"').divide(.es(timefield=start_time, q=*)).multiply(100).mvavg(3d).bars(stack=true).label('infinity (%)'),
+    .es(timefield=start_time,q='NOT supported_hw:"infinity"').divide(.es(timefield=start_time, q=*)).multiply(100).mvavg(3d).bars(stack=true).label('gen4/5 (%)')
+    .es(timefield=queue_time, q='(status:"Setup Failure") OR (status:"Did Not Launch")').label('Infra Error Trend').trend(), .es(timefield=queue_time, q='(status:"Setup Failure") OR (status:"Did Not Launch")').mvavg(3d).label('Infra Error')
+    .es(timefield=start_time, q='in_queued_seconds:[0 TO 18000]').mvavg(3d).label('5 hours'), .es(timefield=start_time, q='in_queued_seconds:[0 TO 18000]').label('5 hours trend').trend().lines(width=1),
+    .es(timefield=start_time, q='in_queued_seconds:[18000 TO 86400]').mvavg(3d).label('1 day'), .es(timefield=start_time, q='in_queued_seconds:[18000 TO 86400]').label('1 day trend').trend().lines(width=1),
+    .es(timefield=start_time, q='in_queued_seconds:[86400 TO 8640000]').mvavg(3d).label('more days'), .es(timefield=start_time, q='in_queued_seconds:[86400 TO 8640000]').label('more days trend').trend().lines(width=1)
