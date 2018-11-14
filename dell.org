@@ -59,6 +59,18 @@
 ** Patch
    Run correlation module test:
    correlation $ PYTHONPATH=. python -m pytest tests
+   staging: spog-staging.west.isilon.com
+** update prod env
+   ~/.pypirc
+   upload command: python setup.py sdist bdist_wheel register -r isilon upload -r isilon
+
+   1. cd /var/www/spog
+   2. . venv/bin/activate
+   3. pip uninstall spog
+   4. pip uninstall patch_workflow_tools
+   5. pip install patch_workflow_tools
+   6. pip install spog
+   7. systemctl restart httpd
 *** DONE Bug 234284 - Correlation job miss files
     CLOSED: [2018-08-02 Thu 18:05]
     - State "DONE"       from "TODO"       [2018-08-02 Thu 18:05]
@@ -69,16 +81,24 @@
     - State "TODO"       from              [2018-08-02 Thu 18:04]
 
 
-*** TODO Bug 234363 - patch correlation should include meaningful manual page changes
+*** DONE Bug 234363 - patch correlation should include meaningful manual page changes
+    CLOSED: [2018-11-12 Mon 14:45]
 
+    - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
     - State "TODO"       from              [2018-08-03 Fri 10:02]
 *** TODO Bug 234298 - PR failed right after kicking off the "Roll Patch"
     - State "TODO"       from              [2018-08-03 Fri 10:03]
-*** TODO Bug 231474 - Patch Automation can't skip services restarting test even if the services are not selected in "Manual Svcs"
+*** DONE Bug 231474 - Patch Automation can't skip services restarting test even if the services are not selected in "Manual Svcs"
+    CLOSED: [2018-11-12 Mon 14:45]
+    - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
     - State "TODO"       from              [2018-08-03 Fri 10:03]
-*** TODO Bug 233838 - Patch mechanics test should handle the case of adding new service process
+*** DONE Bug 233838 - Patch mechanics test should handle the case of adding new service process
+    CLOSED: [2018-11-12 Mon 14:45]
+    - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
     - State "TODO"       from              [2018-08-03 Fri 10:04]
-*** TODO Bug 229650 - Failed job due to description mismatch
+*** DONE Bug 229650 - Failed job due to description mismatch
+    CLOSED: [2018-11-12 Mon 14:45]
+    - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
     - State "TODO"       from              [2018-08-03 Fri 10:04]
 ** github
    git remote add upstream git@github.west.isilon.com:IME-Patch/correlation.git
@@ -269,13 +289,35 @@
     File "/home/xujian/dev/bugreport/bugreports/bugreports/models.py", line 1150, in process_transitions_to_time
     self.tabulate_transitions(self.last_update_date)
 
-** TODO plan for patch tool transfer
-   DEADLINE: <2018-08-29 Wed>
-** TODO new dashboard
-   DEADLINE: <2018-09-15 Sat>
-** TODO need white file list in patch maker
+** DONE plan for patch tool transfer
+   CLOSED: [2018-11-12 Mon 14:45] DEADLINE: <2018-08-29 Wed>
+   - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
+** DONE new dashboard
+   CLOSED: [2018-11-12 Mon 14:47] DEADLINE: <2018-09-15 Sat>
+   - State "DONE"       from "TODO"       [2018-11-12 Mon 14:47]
+** DONE need white file list in patch maker
+   CLOSED: [2018-11-12 Mon 14:46]
+   - State "DONE"       from "TODO"       [2018-11-12 Mon 14:46]
 ** TODO dashboard RW/build/DT
    - end to end of alarming and trouble shooting.
    - learn from isilon dashboard.
    - test running vs hardware status, ask heavily on illustration/analysis of background data/status.
-   
+   - https://github.west.isilon.com/eng-tools/zabbix-monitoring-docs/blob/master/questionnaires/jenkins-questionnaire.md
+** TODO new problem
+   There¡¯s a bug viewing XML: https://spog.west.isilon.com/services/patch-automation/xml?patch_id=191367
+   and README https://spog.west.isilon.com/services/patch-automation/readme/draft?patch=191367
+   - State "TODO"       from              [2018-11-12 Mon 15:03]
+** DONE COI session
+   CLOSED: [2018-11-13 Tue 14:25]
+   - State "DONE"       from "TODO"       [2018-11-13 Tue 14:25]
+   - State "TODO"       from              [2018-11-12 Mon 15:04]
+   - exammple: query_es.py, ck_cert.py
+   - Github op: pull/push/fork, squish/force
+** TODO patch db to github design
+   The extraction of git data from the api is in the workflow_tools package, which is already a dependency
+   in the same `patch-pdk-entrypoints` branch
+   https://github.west.isilon.com/ctabor/spog/blob/patch-git-workflow/spog/services/patch_automation/bp.py#L86
+   https://github.west.isilon.com/ctabor/spog/blob/patch-git-workflow/spog/services/patch_automation/bp.py#L461
+
+   https://github.west.isilon.com/ctabor/workflow_tools/blob/patch-pdk-entrypoints/patch_automation/pdk/git.py#L17
+   fairly straightforward

@@ -527,6 +527,28 @@
     # unset proxy
     git config --global --unset-all http.proxy
     git config --global --unset-all https.proxy
+*** cherrypick
+    git clone git@github.west.isilon.com:xjian/onefs.git
+    git checkout remotes/origin/BR_BUG_PATCH_221280
+    git banch -a
+    git checkout -b BR_BUG_PATCH_221280
+    git banch -v
+    git branch -v
+    git cherry-pick 1e0f3fc4386b10ae002d83a2712546989ec5a979
+    git status
+    git push origin BR_BUG_PATCH_221280
+*** checkout remote branch as another branch
+    git remote add ime-patch git@github.west.isilon.com:IME-Patch/Patches.git
+    git remote -v
+    git fetch ime-patch
+    git branch -a
+    git branch -v | more
+    git branch -a | more
+    git branch -a | grep 232710
+    git checkout remotes/ime-patch/BR_BUG_PATCH_232710_PROD
+    git checkout -b BR_BUG_PATCH_233180
+    git log
+    git push origin BR_BUG_PATCH_233180
 ** check Linux bond interface status
    # cat /proc/net/bonding/bond3
    Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
@@ -1180,6 +1202,33 @@
        "python.pythonPath": "${workspaceFolder}/bin/python"
    }
 
+   my vscode config:
+   $ more ./.config/Code/User/settings.json
+   {
+   "git.ignoreLegacyWarning": true,
+   "window.zoomLevel": 4,
+   "editor.fontSize": 12,
+   "editor.fontFamily": "'Monaco', 'Consolas', 'Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+   "http.proxyStrictSSL": false,
+   "workbench.editor.enablePreview": false,
+   "workbench.editor.enablePreviewFromQuickOpen": false,
+   "python.linting.pylintPath": "/bin/pylint",
+   "workbench.colorCustomizations": {
+   "editor.selectionBackground": "#8a6b2f",
+   "editor.selectionHighlightBackground": "#915696",
+   "editorBracketMatch.background": "#8b6816",
+   "editorBracketMatch.border": "#c11a1a"
+   },
+   "terminal.integrated.rendererType": "dom",
+   "python.linting.pep8Enabled": true,
+   "python.linting.pep8Path": "/bin/pep8",
+   "files.exclude": {
+   "**/.vscode/**": true,
+   "**/*.diff": true,
+   "**/venv/**": true
+   },
+   }
+
 ** elasticsearch/kibana diagrams
 
 *** timelion
@@ -1190,3 +1239,12 @@
     .es(timefield=start_time, q='in_queued_seconds:[0 TO 18000]').mvavg(3d).label('5 hours'), .es(timefield=start_time, q='in_queued_seconds:[0 TO 18000]').label('5 hours trend').trend().lines(width=1),
     .es(timefield=start_time, q='in_queued_seconds:[18000 TO 86400]').mvavg(3d).label('1 day'), .es(timefield=start_time, q='in_queued_seconds:[18000 TO 86400]').label('1 day trend').trend().lines(width=1),
     .es(timefield=start_time, q='in_queued_seconds:[86400 TO 8640000]').mvavg(3d).label('more days'), .es(timefield=start_time, q='in_queued_seconds:[86400 TO 8640000]').label('more days trend').trend().lines(width=1)
+
+** set ntp and timezone
+  643  yum install -y chrony
+  644  cat > /etc/chrony.conf
+  645  timedatectl set-timezone Etc/GMT
+  646  systemctl enable chronyd
+  647  systemctl start chronyd
+  648  timedatectl
+  649  date
