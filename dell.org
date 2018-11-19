@@ -14,44 +14,6 @@
    5. PSA sample: https://github.west.isilon.com/isilon/tech-doc/pull/409/files#diff-b87a6ebb229dc3e4789060e17b6869dd
       DDD sample: https://github.west.isilon.com/isilon/tech-doc/tree/master/DDD/engineering_automation/saltstack
    @here above is PSA/DDD process
-** Bug
-*** patch
-    Bug 229967 - Changes to elf_differ.sh in correlation PR #33 introduce false positives, inflating patched file lists and introducing unnecessary conflicts
-    Bug 231715 - multiple types within one indices is not allowed in elasticsearch 6.x
-    Bug 227753 - no pids in procstat after (un)install for stats_d and flexnet.so
-    Bug 231919 - uwsgi variable month name string length cause ELF file diff
-
-    1.1	Manual files list 
-    231291
-    cri	N/A	EngTools::Patch_Auto	ctabor	RESO	RETE	Patch Automation should support manual file list for OneFS8 patches
-    1.2	Manual patch conflicts list
-    215986
-    blo	N/A	EngTools::Patch_Auto	ctabor	VERI	FIXE	Spog: Conflicting Patches don't go away after they are removed.
-    1.3	Handle hardlink files in mechanics test
-    227753
-    cri	N/A	EngTools::Patch_Auto	ctabor	REOP	---	no pids in procstat after (un)install for stats_d and flexnet.so
-*** rw
-    The bugs that most impact to us:
-    Bug 227270 - Tests that are User stopped didn't release the console of the nodes
-    stopped in some test status, that cause console abnormal, maybe some script run something cause OS abnormal then console NOK.
-    
-    bug 228715    cri    N/A    FS: Events    eng-fs-infra    NEW    ---    Onefs with incorrect event ' CPU Module located in chassis JWXNC162200030 slot 4 has failed. Replace the following component as soon as possible: Compute Node'
-    no idea: CPU alarm. plug out/in CPU alarm disappear
-    
-    Bug 226236 - Run `isi_var_migrate --undo` before isi_reimage on RW nodes
-    degrade. OS SYS on boot flash. mounted to /var0-1, /root0-1 fs, file system is in degrade state.
-    
-    Bug 227143 - smartlock_regression_fvt.list results node into compliance mode
-    why into compliance mode?
-    
-    bug 226244 - reimage timeout  (a lot of) (edited)
-    many many reason, such as hardware.xml format wrong, so why xml misformatted;
-    new freebsd version boot time too long: before from NVRAM, now from disk.
-    So whether PXE for all prep can solve reimage timeout issue, and also need not login(not available indeed) to corupted server to do recover.
-
-    Jimmy req:
-    prep with the newer version
-    build elasticsearch for big data?
 ** leankit
    Leankit req:
    https://isilon.leankit.com/card/688274532
@@ -59,7 +21,7 @@
 ** Patch
    Run correlation module test:
    correlation $ PYTHONPATH=. python -m pytest tests
-   staging: spog-staging.west.isilon.com
+   staging: spog-staging.west.isilon.com patch-automation-db-prod01.west.isilon.com
 ** update prod env
    ~/.pypirc
    upload command: python setup.py sdist bdist_wheel register -r isilon upload -r isilon
@@ -101,12 +63,22 @@
     - State "DONE"       from "TODO"       [2018-11-12 Mon 14:45]
     - State "TODO"       from              [2018-08-03 Fri 10:04]
 ** github
+   # rebase with commit
    git remote add upstream git@github.west.isilon.com:IME-Patch/correlation.git
-   git pull upstream master --rebase
+   git pull upstream master
+  
    git fetch upstream
-   git branch -a
-   git status
    git merge upstream/master
+
+   # rebase without commit
+   git remote add upstream git@github.west.isilon.com:IME-Patch/workflow_tools.git
+   git fetch upstream
+   git rebase upstream/master
+
+** buildweb api
+   dforrest [11:51 PM]
+   @jian xu @ctabor Here¡¯s the only Buildweb API docs I¡¯m aware of https://wiki.west.isilon.com/index.php?title=Buildweb_API
+   Unfortunately it¡¯s woefully out of date and contains much outdated/misleading/completely wrong information.  Or, if you know a little Django, you can checkout the list of all endpoints here: https://github.west.isilon.com/eng-automation/buildweb/blob/master/urls.py.  The endpoints you will probably want to use are queue_custom_testmgr or queue_regression.  DM me with specific questions and I can walk you through how to use them for your tasks.
 ** elasticsearch
    URL search:
    http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/test_info/_search
