@@ -1193,41 +1193,55 @@
    https://www.howtoforge.com/nfs-server-and-client-on-centos-7
    
 ** VS code for python virtualenv
-   in VS user setting:
-   "python.linting.pylintPath": "/bin/pylint"
-   
-   in virtualenv directory:
-   $ cat bugreport/.vscode/settings.json
-   {
-       "python.pythonPath": "${workspaceFolder}/bin/python"
-   }
-
-   my vscode config:
-   $ more ./.config/Code/User/settings.json
-   {
-   "git.ignoreLegacyWarning": true,
-   "window.zoomLevel": 4,
-   "editor.fontSize": 12,
-   "editor.fontFamily": "'Monaco', 'Consolas', 'Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
-   "http.proxyStrictSSL": false,
-   "workbench.editor.enablePreview": false,
-   "workbench.editor.enablePreviewFromQuickOpen": false,
-   "python.linting.pylintPath": "/bin/pylint",
-   "workbench.colorCustomizations": {
-   "editor.selectionBackground": "#8a6b2f",
-   "editor.selectionHighlightBackground": "#915696",
-   "editorBracketMatch.background": "#8b6816",
-   "editorBracketMatch.border": "#c11a1a"
-   },
-   "terminal.integrated.rendererType": "dom",
-   "python.linting.pep8Enabled": true,
-   "python.linting.pep8Path": "/bin/pep8",
-   "files.exclude": {
-   "**/.vscode/**": true,
-   "**/*.diff": true,
-   "**/venv/**": true
-   },
-   }
+   In VS user setting:
+    {
+        "git.ignoreLegacyWarning": true,
+        "window.zoomLevel": 4,
+        "editor.fontSize": 12,
+        "editor.fontFamily": "'Monaco', 'Consolas', 'Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+        "http.proxyStrictSSL": false,
+        "workbench.editor.enablePreview": false,
+        "workbench.editor.enablePreviewFromQuickOpen": false,
+        "python.linting.pylintPath": "/bin/pylint",
+        "workbench.colorCustomizations": {
+            "editor.selectionBackground": "#8a6b2f",
+            "editor.selectionHighlightBackground": "#915696",
+            "editorBracketMatch.background": "#8b6816",
+            "editorBracketMatch.border": "#c11a1a"
+        },
+        "terminal.integrated.rendererType": "dom",
+        "python.linting.pep8Enabled": true,
+        "python.linting.pep8Path": "/bin/pep8",
+        "files.exclude": {
+            "**/.vscode/**": true,
+            "**/*.diff": true
+        },
+        "window.titleBarStyle": "custom"
+    }
+    
+   Setup virtualenv
+    $ cat ~/bin/venv
+    #!/bin/bash
+    name=$1
+    if [ "$name" == "" ];then
+        "usage: venv <path>"
+        exit
+    fi
+    
+    # setup vscode workspace settings:
+    mkdir -p $name/.vscode
+    # full path is not needed:
+    # "python.pythonPath": "\${workspaceFolder}/venv/bin/python"
+    cat > $name/.vscode/settings.json <<EOF
+    {
+            "python.pythonPath": "venv/bin/python"
+            "python.linting.pylintPath": "venv/bin/pylint"
+    }
+    EOF
+    
+    virtualenv $name/venv
+    . $name/venv/bin/activate
+    pip install pytest pylint
 
 ** elasticsearch/kibana diagrams
 
@@ -1248,3 +1262,29 @@
   647  systemctl start chronyd
   648  timedatectl
   649  date
+** github
+   # rebase with commit
+   git remote add upstream git@github.west.isilon.com:IME-Patch/correlation.git
+   git pull upstream master
+  
+   git fetch upstream
+   git merge upstream/master
+
+   # rebase without commit
+   git remote add upstream git@github.west.isilon.com:IME-Patch/workflow_tools.git
+   git fetch upstream
+   git rebase upstream/master
+** vagrant on centos 7
+   # install packages
+   curl -k https://releases.hashicorp.com/vagrant/2.1.2/vagrant_2.1.2_x86_64.rpm -o vagrant_2.1.2_x86_64.rpm
+   rpm -i vagrant_2.1.2_x86_64.rpm
+   # need to disable secure sign in repo config:
+   wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
+   yum install VirtualBox-5.2
+   # install corresponding kernel head then setup virtualbox driver
+   uname -r
+   yum install kernel-devel-3.10.0-862.3.2.el7.x86_64
+   yum install kernel-headers-3.10.0-862.3.2.el7.x86_64
+   rcvboxdrv setup
+   # disable secure vagrant box download
+   config.vm.box_download_insecure = true
