@@ -1029,7 +1029,48 @@
    
    # search in URL
    http://elasticsearch.elk.apps.isilon.com:9200/regression_wheel_dashboard/test_info/_search
-
+   
+   # snapshot backup and restore
+   GET /_snapshot
+   
+   PUT /_snapshot/my_fs_backup
+   {
+   "type": "fs",
+   "settings": {
+   "location": "/var/esbackup",
+   "compress": true
+   }
+   }
+   
+   PUT /_snapshot/my_fs_backup/snapshot_1?wait_for_completion=true
+   GET /_snapshot/my_fs_backup/snapshot_1
+   
+   GET rw_dashboard_test_info/test_info/_search
+   {
+   "query": {
+   "match": {
+   "resource": 307817
+   }
+   }
+   }
+   
+   POST rw_dashboard_test_info/test_info/_delete_by_query
+   {
+   "query": {
+   "match": {
+   "resource": 307817
+   }
+   }
+   }
+   
+   POST rw_dashboard_test_info/_close
+   
+   POST /_snapshot/my_fs_backup/snapshot_1/_restore
+   {
+   "indices": "rw_dashboard_test_info"
+   }
+   
+   POST rw_dashboard_test_info/_open
 *** count for time related status
     POST rw_dashboard_test_info/test_info/_search
     {
@@ -1157,6 +1198,8 @@
    ; "UBDC" session per <User,BitPerPixel,DisplaySize,Connection>
    Policy=Default
 
+   # kill dead session
+   ps -C Xvnc -o pid,user
 
 ** gnome settings
    # list settings
