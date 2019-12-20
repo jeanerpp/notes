@@ -690,6 +690,36 @@
    To verify, run ¡®docker run -ti ¡®your image¡¯ /bin/bash¡¯ and manually execute your commands (wget ¡­) to check if it works.
 *** enable normal user to access docker service
     usermod -aG docker xujian
+*** resovle "error creating vxlan interface file exists docker" (journalctl -u docker.service)
+    - docker stack rm
+    - docker swarm leave --force
+    - docker network rm ...
+    - systemctl stop docker
+    - umount /var/run/docker/netns/*; /bin/rm -f /var/run/docker/netns/*
+    - be careful to use "ip link delete ...", make sure links are of docker space
+    13: docker_gwbridge: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP 
+    link/ether 02:42:b6:cf:14:cc brd ff:ff:ff:ff:ff:ff
+    inet 172.18.0.1/16 scope global docker_gwbridge
+    valid_lft forever preferred_lft forever
+    inet6 fe80::42:b6ff:fecf:14cc/64 scope link 
+    valid_lft forever preferred_lft forever
+    15: vetha88c1b0@if14: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker_gwbridge state UP 
+    link/ether 52:7b:50:0f:30:55 brd ff:ff:ff:ff:ff:ff link-netnsid 1
+    inet6 fe80::507b:50ff:fe0f:3055/64 scope link 
+    valid_lft forever preferred_lft forever
+    19: vethb806235@if18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker_gwbridge state UP 
+    link/ether de:72:2e:2b:0b:24 brd ff:ff:ff:ff:ff:ff link-netnsid 3
+    inet6 fe80::dc72:2eff:fe2b:b24/64 scope link 
+    valid_lft forever preferred_lft forever
+    26: veth0104cde@if25: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker_gwbridge state UP 
+    link/ether 96:90:09:61:19:65 brd ff:ff:ff:ff:ff:ff link-netnsid 4
+    inet6 fe80::9490:9ff:fe61:1965/64 scope link 
+    valid_lft forever preferred_lft forever
+    - restart machine
+    - systemctl start docker
+    - docker swarm init
+    - rename docker stack network in yml config
+    - docker deploy
 ** substitute '\n' with newline: sed 's/\\n/\n/g'
 ** kernel task backtrace when has 'D' state in atop
    echo w > /proc/sysrq-trigger
@@ -821,6 +851,9 @@
    read key : openssl rsa -in /home/xujian/test/client-key.pem -noout -text
    cert fingerprint: openssl x509 -in /home/xujian/test/client-cert.pem -noout -sha256 -fingerprint
    read ca bundle: openssl crl2pkcs7 -nocrl -certfile cacert.pem | openssl pkcs7 -print_certs -noout
+   generate self signed key/cert: openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=10.32.130.31:5000'
+     -nodes: no key password protection
+     -subj: https host FQDN name, -subj "/C=US/ST=Oregon/L=Portland/O=Company Name/OU=Org/CN=www.example.com"
 ** download/extract rpm package
    repoquery --show-duplicates kernel-headers-3.10.0
    yumdownloader kernel-headers-0:3.10.0-514.2.2.el7.x86_64
@@ -1071,75 +1104,93 @@
    }
    
    POST rw_dashboard_test_info/_open
-*** count for time related status
-    POST rw_dashboard_test_info/test_info/_search
-    {
-      "size": 0, 
-      "query":
-      {
-            "bool": {
-                "must": [
-                    {
-                        "range": {
-                            "queue_time": {
-                                "lt": "2018-07-13T12:00:00"
-                            }
-                        }
-                    },
-                    {
-                        "range": {
-                            "start_time": {
-                                "gte": "2018-07-13T12:00:00"
-                            }
-                        }
-                    }                    
-                ]
-            }        
-      }
-    }
-*** aggression with value range
-    POST rw_dashboard_test_info/test_info/_search
-    {
-      "size": 0, 
-      "query":
-      {
-        "match_all" : {}
-      },
-      "aggs":{
-          "per_tt":{
-              "date_histogram": {
-                  "field": "start_time",
-                  "interval": "day"
-              },
-              "aggs" : {
-                "pid_ranges" : {
-                    "range" : {
-                        "field" : "id",
-                        "ranges" : [
-                            { "to" : 100.0 },
-                            { "from" : 100.0, "to" : 200.0 },
-                            { "from" : 200.0 }
-                        ]
-                    }
-                }
-              }
-            }
-        }
-    }
-    
-*** get mapping
-    GET rw_dashboard_test_info/_mapping/test_info
+   
+*** script aggregation for multiple fields
+GET commits/commits/_search
+{
+    "size": 0,
+     "query": {
+       "match_all": {}
+     },
+     "aggs": {
+       "data": {
+         "terms": {
+                "size": 30,        
+                "script": "doc['filename.keyword'].value+doc['span'].value"
+          }
+       }
+     }
+}
 
-*** set mapping
-    PUT rw_dashboard_test_info/_mapping/test_info
-    {
-      "properties": {
-        "in_queued_seconds":{
-          "type": "long"
-        }
-      }
-    }
-    
+**** count for time related status
+     POST rw_dashboard_test_info/test_info/_search
+     {
+       "size": 0, 
+       "query":
+       {
+             "bool": {
+                 "must": [
+                     {
+                         "range": {
+                             "queue_time": {
+                                 "lt": "2018-07-13T12:00:00"
+                             }
+                         }
+                     },
+                     {
+                         "range": {
+                             "start_time": {
+                                 "gte": "2018-07-13T12:00:00"
+                             }
+                         }
+                     }                    
+                 ]
+             }        
+       }
+     }
+**** aggression with value range
+     POST rw_dashboard_test_info/test_info/_search
+     {
+       "size": 0, 
+       "query":
+       {
+         "match_all" : {}
+       },
+       "aggs":{
+           "per_tt":{
+               "date_histogram": {
+                   "field": "start_time",
+                   "interval": "day"
+               },
+               "aggs" : {
+                 "pid_ranges" : {
+                     "range" : {
+                         "field" : "id",
+                         "ranges" : [
+                             { "to" : 100.0 },
+                             { "from" : 100.0, "to" : 200.0 },
+                             { "from" : 200.0 }
+                         ]
+                     }
+                 }
+               }
+             }
+         }
+     }
+     
+**** get mapping
+     GET rw_dashboard_test_info/_mapping/test_info
+
+**** set mapping
+     PUT rw_dashboard_test_info/_mapping/test_info
+     {
+       "properties": {
+         "in_queued_seconds":{
+           "type": "long"
+         }
+       }
+     }
+     
 ** VM inside VMWARE VM (but the performance is pool)
    yum install virt-manager
    yum install qemu
@@ -1199,7 +1250,9 @@
    Policy=Default
 
    # kill dead session
+   ps -ef | grep ...
    ps -C Xvnc -o pid,user
+   ps -C xrdp -o pid,user
 
 ** gnome settings
    # list settings
@@ -1214,7 +1267,9 @@
    # lock screen after 1 hour
    gsettings set org.gnome.desktop.session idle-delay 3600
 
-** pip use additional repo
+** pip
+*** pip use additional repo
+   - State "TODO"       from ""           [2019-07-03 Wed 16:51]
    xujian@EAT ~/.config/pip $ cat /home/xujian/.config/pip/pip.conf
    [global]
    extra-index-url = http://artifactory.west.isilon.com:8081/artifactory/api/pypi/pypi-repo/simple
@@ -1228,6 +1283,8 @@
    Can also define base repo:
    index-url = http://download.zope.org/ppix
    
+*** pip do not use disutils
+    pip install --trusted-host pypi.org --upgrade setuptools
 ** repaire corrupted python package
    easy_install -U urllib3
    this way is more powerful than pip install
@@ -1331,3 +1388,16 @@
    rcvboxdrv setup
    # disable secure vagrant box download
    config.vm.box_download_insecure = true
+** k8s
+*** install minikube
+    https://kubernetes.io/docs/setup/learning-environment/minikube/
+
+    solve docker driver error:
+    https://stackoverflow.com/questions/43794169/docker-change-cgroup-driver-to-systemd
+    failed to run Kubelet: failed to create kubelet: misconfiguration: kubelet cgroup driver: "cgroupfs" is different from docker cgroup driver: "systemd"
+
+    configure minikube without vm:
+    minikube start --vm-driver=none
+
+*** build Jenkins container
+    https://www.blazemeter.com/blog/how-to-setup-scalable-jenkins-on-top-of-a-kubernetes-cluster/
