@@ -538,6 +538,11 @@
     git status
     git push origin BR_BUG_PATCH_221280
 *** checkout remote branch as another branch
+*** 
+*** 
+*** 
+*** 
+*** 
     git remote add ime-patch git@github.west.isilon.com:IME-Patch/Patches.git
     git remote -v
     git fetch ime-patch
@@ -549,6 +554,10 @@
     git checkout -b BR_BUG_PATCH_233180
     git log
     git push origin BR_BUG_PATCH_233180
+*** fetch remote pr
+    fetch PR head: git fetch origin +refs/pull/1/head:pr_1
+    fetch PR merge: git fetch origin +refs/pull/1/merge:merge_1
+    fetch All remotes: git fetch --tags --progress origin +refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*
 ** check Linux bond interface status
    # cat /proc/net/bonding/bond3
    Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
@@ -720,6 +729,11 @@
     - docker swarm init
     - rename docker stack network in yml config
     - docker deploy
+*** volume backup:
+    https://hub.docker.com/p/loomchild/volume-backup
+*** upgrade to docker-ce to support more features such as nfs mount
+refer to https://docs.docker.com/install/linux/docker-ce/centos/, https://docs.docker.com/compose/compose-file/#external
+
 ** substitute '\n' with newline: sed 's/\\n/\n/g'
 ** kernel task backtrace when has 'D' state in atop
    echo w > /proc/sysrq-trigger
@@ -847,6 +861,7 @@
 *** specific yum repo
     yum install --disablerepo="*" --enablerepo="7_x86_64_*" procmail
 ** openssl
+   show server cert: openssl s_client -connect testdb-efrm.sea1.apps.isilon.com:443 -showcerts
    read cert: openssl x509 -in /home/xujian/test/client-cert.pem -noout -text
    read key : openssl rsa -in /home/xujian/test/client-key.pem -noout -text
    cert fingerprint: openssl x509 -in /home/xujian/test/client-cert.pem -noout -sha256 -fingerprint
@@ -961,10 +976,23 @@
    Nothing to do
    root@EAT /home/xujian/tmp # update-ca-trust force-enable
    root@EAT /home/xujian/tmp # ls /etc/pki/ca-trust/source/anchors/
+
    # get cert file from browser, such as chrome, then save as emc_root.cer
-   root@EAT /home/xujian/tmp # openssl x509 -in emc_root.cer -inform der -outform pem -out emc_root.pem
-   root@EAT /home/xujian/tmp # cp emc_root.pem /etc/pki/ca-trust/source/anchors/
+   # note to store all levels of CA, then for each level:
+   root@EAT /home/xujian/tmp # openssl x509 -in emc_root.cer -outform pem -out emc_root.pem
+
+   # or get from openssl:
+   openssl s_client connect pypi.org:443 -showcerts
+
+   # read the cert pem:
+   openssl x509 -in xxx.pem -noout -text
+
+   root@EAT /home/xujian/tmp # cp xxx.pem /etc/pki/ca-trust/source/anchors/
    root@EAT /home/xujian/tmp # update-ca-trust extract
+   
+   # check timestamp to make sure updated:
+   ls /etc/pki/tls/certs/ca-bundle.crt
+
    root@EAT /home/xujian/tmp # exit
 ** java cert ca problem
    # Jenkins fail to install some plugins because of this
@@ -999,13 +1027,47 @@
    # However can not find Linux ControlPanel to set this:
    -Dcom.sun.net.ssl.checkRevocation=false
 
-** pip install fails with ¡°connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:598)¡±
+** pip install fails with connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:
+   some yum libs may related to this problem:
+     yum update python36-libs-3.6.8-1.el7.x86_64 (/usr/lib64/python3.6/ssl.py)
+     yum ca-certificates
+     yum update openssl
+
+   But python may use its own cacert:
+   some python libs urllib3, requests, certifi
+    site-packages/certifi/cacert.pem
+    site-packages/pip/_vendor/certifi/cacert.pem
+
+
    at last solved by global pip.conf:
    xujian@EAT ~/storage/notes $ cat /etc/pip.conf
    [global]
    trusted-host = pypi.python.org
                   pypi.org
                   files.pythonhosted.org
+   and add these trusted-host to ~/.config/pip/pip.conf also.
+
+   poetry has similar error, and solved by:
+
+   ./lib/python3.6/site-packages/urllib3/connectionpool.py
+        if False and not conn.is_verified:
+           ^^^^^^^^^
+            warnings.warn(
+                (
+                    "Unverified HTTPS request is being made. "
+                    "Adding certificate verification is strongly advised. See: "
+                    "https://urllib3.readthedocs.io/en/latest/advanced-usage.html"
+                    "#ssl-warnings"
+                ),
+                InsecureRequestWarning,
+            )
+
+   ./lib/python3.6/site-packages/requests/sessions.py
+        # xujian
+        return {'verify': False, 'proxies': proxies, 'stream': stream,
+                          ^^^^^
+                'cert': cert}
+
 
 ** virt-manager corrupted font when X forwarding
    yum install dejavu-lgc-sans-fonts
@@ -1191,6 +1253,34 @@ GET commits/commits/_search
        }
      }
      
+
+*** define filter aggregation for Kibana, e.g. filter "miss" and "match":
+GET ita/ita/_search
+{
+  "size": 0,
+  "aggs":{
+    "stats":{
+      "filters": {
+        "filters": {
+          "miss": {
+            "term":{
+              "testlist": "miss"
+            }
+          },
+          "match": {
+            "bool": {
+              "must_not": {
+                "term":{
+                  "testlist": "miss"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 ** VM inside VMWARE VM (but the performance is pool)
    yum install virt-manager
    yum install qemu
@@ -1204,7 +1294,7 @@ GET commits/commits/_search
    https://www.itzgeek.com/how-tos/linux/centos-how-tos/install-xrdp-on-centos-7-rhel-7.html
 
    # installation
-   yum groupinstall "GNOME Desktop" "Graphical Administration Tools"
+   yum groupinstall "GNOME Desktop" "Graphical Administration Tools"  # "Graphical Administration Tools" seems not needed.
    yum -y install xrdp tigervnc-server
    yum groupinstall "Server with GUI"
 
@@ -1401,3 +1491,23 @@ GET commits/commits/_search
 
 *** build Jenkins container
     https://www.blazemeter.com/blog/how-to-setup-scalable-jenkins-on-top-of-a-kubernetes-cluster/
+
+** Python profile
+python -m cProfile -o run.cprof /storage/xujian/dev/tools/bz_mign/venv/bin/mg list --bug 273000
+pyprof2calltree -k -i run.cprof
+
+from ita_cc_data.cc_db import get_testlist_for_commits
+g=GithubProject('isilon', 'onefs')
+cProfile.run('get_testlist_for_commits(g, ["4bc065097a1f0cb725dd4ef5a1a3084cd61db719"])', 'run.cprof')
+pyprof2calltree -k -i run.cprof
+
+** modify psql auto seq
+bzmign=> create sequence migrate_id_seq;
+CREATE SEQUENCE
+bzmign=> alter table migrate alter id set default nextval('migrate_id_seq');
+ALTER TABLE
+bzmign=> select setval('migrate_id_seq', 1950);
+ setval 
+--------
+   1950
+(1 row)
