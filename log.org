@@ -558,6 +558,13 @@
     fetch PR head: git fetch origin +refs/pull/1/head:pr_1
     fetch PR merge: git fetch origin +refs/pull/1/merge:merge_1
     fetch All remotes: git fetch --tags --progress origin +refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*
+*** create centrolized repo
+# on repo server
+cd /home/xujian/gitorg/ita_ai
+git --bare init --shared
+# on dev client
+git remote add origin xujian@10.84.120.183:/home/xujian/gitorg/ita_ai
+git push --force origin HEAD
 ** check Linux bond interface status
    # cat /proc/net/bonding/bond3
    Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
@@ -981,10 +988,10 @@ refer to https://docs.docker.com/install/linux/docker-ce/centos/, https://docs.d
    # note to store all levels of CA, then for each level:
    root@EAT /home/xujian/tmp # openssl x509 -in emc_root.cer -outform pem -out emc_root.pem
 
-   # or get from openssl:
-   openssl s_client connect pypi.org:443 -showcerts
+   # or get pem text from openssl:
+   openssl s_client -connect pypi.org:443 -showcerts
 
-   # read the cert pem:
+   # read the cert pem to verify:
    openssl x509 -in xxx.pem -noout -text
 
    root@EAT /home/xujian/tmp # cp xxx.pem /etc/pki/ca-trust/source/anchors/
@@ -1073,6 +1080,8 @@ refer to https://docs.docker.com/install/linux/docker-ce/centos/, https://docs.d
    yum install dejavu-lgc-sans-fonts
 
 ** elasticsearch
+
+*** commands
    # for indice "regression_wheel_dashboard", type "test_info":
      "_index": "regression_wheel_dashboard",
      "_type": "test_info",
@@ -1281,6 +1290,14 @@ GET ita/ita/_search
     }
   }
 }
+*** cluster health state red since unassigned shards
+    http://es-cluster-2.prod.rdu1.west.isilon.com:9200/_cluster/health?pretty
+    curl -XGET http://es-cluster-1.prod.sea1.west.isilon.com:9200/_cat/shards?h=index,shards,state,prirep,unassigned.reason | grep UNASSIGNED
+    curl -XDELETE "http://es-cluster-1.prod.sea1.west.isilon.com:9200/ac_testcase_results_822-2019-10-02"
+    curl -XPOST 'http://es-cluster-1.prod.sea1.west.isilon.com:9200/_cluster/reroute?pretty' -H 'Content-Type: application/json' -d'{
+        "commands" : [{
+            "allocate_stale_primary" : {
+            "index" : "ac_testcase_results_000-2021-02-04", "shard" : 0,"node" : "es-cluster-1", "accept_data_loss" : true}}]}'
 ** VM inside VMWARE VM (but the performance is pool)
    yum install virt-manager
    yum install qemu
@@ -1294,8 +1311,8 @@ GET ita/ita/_search
    https://www.itzgeek.com/how-tos/linux/centos-how-tos/install-xrdp-on-centos-7-rhel-7.html
 
    # installation
-   yum groupinstall "GNOME Desktop" "Graphical Administration Tools"  # "Graphical Administration Tools" seems not needed.
-   yum -y install xrdp tigervnc-server
+   # yum groupinstall "GNOME Desktop" "Graphical Administration Tools"  # "Graphical Administration Tools" seems not needed.
+   yum -y install xrdp #tigervnc-server
    yum groupinstall "Server with GUI"
 
    systemctl start xrdp
