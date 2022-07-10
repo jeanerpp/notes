@@ -557,6 +557,7 @@
 *** fetch remote pr
     fetch PR head: git fetch origin +refs/pull/1/head:pr_1
     fetch PR merge: git fetch origin +refs/pull/1/merge:merge_1
+    rebase to PR merge: git fetch origin +refs/pull/1/merge;git switch merge_1;git rebase FETCH_HEAD -X ours
     fetch All remotes: git fetch --tags --progress origin +refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*
 *** create centrolized repo
 # on repo server
@@ -1298,6 +1299,62 @@ GET ita/ita/_search
         "commands" : [{
             "allocate_stale_primary" : {
             "index" : "ac_testcase_results_000-2021-02-04", "shard" : 0,"node" : "es-cluster-1", "accept_data_loss" : true}}]}'
+*** script update
+POST code_hotspot/_update_by_query
+{
+  "script": {
+    "source": """
+      def name=ctx._source.filename;
+      if(name!=null){
+      def dirs=name.splitOnToken('/');
+      def rvs=dirs[-1];
+      for(int i=dirs.length-2;i>=0;i--){
+          rvs=rvs+'\\'+dirs[i];
+      }
+      ctx._source.filename_rvs=rvs;
+      }
+    """,
+    "lang": "painless"
+  },
+  "query": {
+    "bool": {
+      "must_not": {
+        "exists": {
+          "field": "filename_rvs"
+        }
+      },
+      "must": {
+        "exists": {
+          "field": "filename"
+        }
+      }
+    }
+  }
+}
+
+POST code_hotspot/_update_by_query
+{
+  "script": {
+    "source": """
+      def name=ctx._source.filename;
+      def dirs=name.splitOnToken('/');
+      def rvs=dirs[-1];
+      for(int i=dirs.length-2;i>=0;i--){
+          rvs=rvs+'\\'+dirs[i];
+      }
+      ctx._source.filename_rvs=rvs;
+    """,
+    "lang": "painless"
+  },
+  "query": {
+    "regexp": {
+      "filename": {
+        "value": ".+",
+        "flags": "ALL"
+      }
+    }
+  }
+}
 ** VM inside VMWARE VM (but the performance is pool)
    yum install virt-manager
    yum install qemu
@@ -1528,3 +1585,6 @@ bzmign=> select setval('migrate_id_seq', 1950);
 --------
    1950
 (1 row)
+** enc/dec file
+$ openssl enc -aes-256-cbc -in info.txt -out info -k "abc"
+$ openssl enc -d -aes-256-cbc -in info -out info.txt -k "abc"
